@@ -28,6 +28,15 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    // Ini blok Microsoft Anda, sudah benar
+    'microsoft' => [
+        'client_id' => env('MICROSOFT_CLIENT_ID'),
+        'client_secret' => env('MICROSOFT_CLIENT_SECRET'),
+        'redirect' => env('MICROSOFT_REDIRECT_URI'),
+        'tenant' => 'common', // Atau tenant ID Anda
+    ],
+
+    // Ini blok Slack Anda, sekarang sudah di dalam array
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),
@@ -35,4 +44,4 @@ return [
         ],
     ],
 
-];
+]; // <-- Hanya ada satu kurung penutup di akhir file
