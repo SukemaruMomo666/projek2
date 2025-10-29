@@ -72,11 +72,11 @@
                                 <div class="sb-nav-link-icon"><i class="fas fa-book-open"></i></div>
                                 Logbook Bimbingan
                             </a>
-                             <a class="nav-link" href="#"> {{-- Ganti href nanti --}}
-                                <div class="sb-nav-link-icon"><i class="fas fa-upload"></i></div>
-                                Upload Revisi
-                            </a>
-                           <a class="nav-link {{ request()->routeIs('bimbingan.index') ? 'active' : '' }}" href="{{ route('bimbingan.index') }}">
+                           <a class="nav-link {{ request()->routeIs('dashboard_dosen') ? 'active' : '' }}" href="{{ route('dosen') }}">
+    <div class="sb-nav-link-icon"><i class="fas fa-book-open"></i></div>
+     Bimbingan dosen
+</a>
+                           <a class="nav-link {{ request()->routeIs('bimbingan') ? 'active' : '' }}" href="{{ route('bimbingan') }}">
     <div class="sb-nav-link-icon"><i class="fas fa-book-open"></i></div>
     Logbook Bimbingan
 </a>

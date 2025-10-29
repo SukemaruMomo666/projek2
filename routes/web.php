@@ -23,9 +23,16 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 Route::get('/bimbingan', function () {
         // Nanti di sini kita akan ambil data bimbingan dari database
-        return view('bimbingan.index'); // Kita akan buat view ini
-    })->name('bimbingan.index'); // Beri nama agar mudah dipanggil
+        return view('bimbingan'); // Kita akan buat view ini
+    })->name('bimbingan'); // Beri nama agar mudah dipanggil
+    Route::get('/dash', function () {
+        // Nanti di sini kita akan ambil data bimbingan dari database
+        return view('dashboard_dosen'); // Kita akan buat view ini
+    })->name('dosen'); // Beri nama agar mudah dipanggil
 
 });
+
+
+
 
 require __DIR__.'/auth.php';
