@@ -43,7 +43,7 @@
                         <div class="bg-white p-6 rounded-lg shadow-md">
                             <h4 class="text-sm font-medium text-gray-500">Bimbingan Berikutnya</h4>
                             <p class="mt-1 text-xl font-semibold text-gray-900">
-                                28 Okt 2025
+                                8 Okt 2025
                             </p>
                             <span class="text-xs text-gray-500">Jam 10:00 - Online</span>
                         </div>
