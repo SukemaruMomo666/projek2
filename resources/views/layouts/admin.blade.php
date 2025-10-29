@@ -76,10 +76,10 @@
                                 <div class="sb-nav-link-icon"><i class="fas fa-upload"></i></div>
                                 Upload Revisi
                             </a>
-                            <a class="nav-link" href="#"> {{-- Ganti href nanti --}}
-                                <div class="sb-nav-link-icon"><i class="fas fa-calendar-alt"></i></div>
-                                Jadwal Bimbingan
-                            </a>
+                           <a class="nav-link {{ request()->routeIs('bimbingan.index') ? 'active' : '' }}" href="{{ route('bimbingan.index') }}">
+    <div class="sb-nav-link-icon"><i class="fas fa-book-open"></i></div>
+    Logbook Bimbingan
+</a>
 
                             <!-- Contoh Menu Lain -->
                             {{--
