@@ -21,6 +21,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::get('/charts', function () {
+        // Ini akan memanggil: resources/views/charts.blade.php
+        return view('charts');
+    })->name('charts'); // <-- Ini yang dicari oleh error Anda
+
+    Route::get('/tables', function () {
+        // Ini akan memanggil: resources/views/tables.blade.php
+        return view('tables');
+    })->name('tables');
 });
 
 require __DIR__.'/auth.php';
