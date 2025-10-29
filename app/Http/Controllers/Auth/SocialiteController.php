@@ -23,34 +23,47 @@ class SocialiteController extends Controller
     /**
      * Menerima data user dari Microsoft setelah login berhasil.
      */
-    public function microsoftCallback()
-    {
-        try {
-            $microsoftUser = Socialite::driver('microsoft')->user();
+/**
+ * Menerima data user dari Microsoft setelah login berhasil.
+ */
+/**
+ * Menerima data user dari Microsoft setelah login berhasil.
+ */
+/**
+ * Menerima data user dari Microsoft setelah login berhasil.
+ */
+public function microsoftCallback()
+{
+    try {
+        // 1. HANCURKAN SESI LAMA (INI KUNCINYA)
+        // Ini untuk membunuh "sesi hantu" yang mungkin nyangkut
+        Auth::logout();
+        session()->invalidate();
+        session()->regenerateToken();
 
-            // Cari user di database kita berdasarkan email dari Microsoft
-            // atau buat user baru jika tidak ada
-            $user = User::updateOrCreate(
-                [
-                    'email' => $microsoftUser->getEmail(), // Kunci pencarian
-                ],
-                [
-                    'name' => $microsoftUser->getName(),
-                    'password' => Hash::make(Str::random(24)) // Buat password acak yang aman
-                    // Anda juga bisa menambahkan 'nim' jika datanya ada dari microsoft
-                    // 'nim' => $microsoftUser->getNickname() // (Contoh, perlu disesuaikan)
-                ]
-            );
+        // 2. Lanjutkan proses login seperti biasa
+        $microsoftUser = Socialite::driver('microsoft')->user();
+        $user = User::where('email', $microsoftUser->getEmail())->first();
 
-            // Loginkan user yang baru dibuat atau yang sudah ada
+        if ($user) {
+            // 3. Cek lagi untuk keamanan, meskipun Tinker sudah bilang OK
+            if (! $user->hasVerifiedEmail()) {
+                $user->markEmailAsVerified(); // Paksa verifikasi jika (entah bagaimana) belum
+            }
+
+            // 4. Loginkan user yang sudah fresh
             Auth::login($user);
 
-            // Arahkan ke dashboard
-            return redirect('/dashboard');
-
-        } catch (\Exception $e) {
-            // Jika ada error (misal user menekan 'cancel'), kembalikan ke login
-            return redirect('/login')->with('error', 'Login dengan Microsoft gagal.');
+            // 5. Arahkan ke dashboard
+            return redirect()->intended('/dashboard');
         }
+
+        // 6. Jika user tidak ditemukan
+        return redirect('/login')->with('error', 'Email Microsoft Anda tidak terdaftar dalam sistem kami.');
+
+    } catch (\Exception $e) {
+        // 7. Tangani error lain
+        return redirect('/login')->with('error', 'Login dengan Microsoft gagal. Silakan coba lagi.');
     }
+}
 }
