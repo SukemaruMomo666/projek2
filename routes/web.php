@@ -35,6 +35,12 @@ Route::get('/bimbingan', function () {
         return view('mahasiswa'); // Kita akan buat view ini
     })->name('mahasiswa'); // Beri nama agar mudah dipanggil
 
+Route::get('/informasi', function () {
+        // Nanti di sini kita akan ambil data bimbingan dari database
+        return view('about'); // Kita akan buat view ini
+    })->name('about'); // Beri nama agar mudah dipanggil
+
+
 });
 
 

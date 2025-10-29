@@ -72,6 +72,12 @@
                                 <div class="sb-nav-link-icon"><i class="fas fa-book-open"></i></div>
                                 Logbook Bimbingan
                             </a>
+
+                    <a class="nav-link {{ request()->routeIs('about') ? 'active' : '' }}" href="{{ route('about') }}">
+    <div class="sb-nav-link-icon"><i class="fas fa-book-open"></i></div>
+     About
+</a>
+
                            <a class="nav-link {{ request()->routeIs('dashboard_dosen') ? 'active' : '' }}" href="{{ route('dosen') }}">
     <div class="sb-nav-link-icon"><i class="fas fa-book-open"></i></div>
      Bimbingan dosen
