@@ -76,6 +76,10 @@
     <div class="sb-nav-link-icon"><i class="fas fa-book-open"></i></div>
      Bimbingan dosen
 </a>
+                           <a class="nav-link {{ request()->routeIs('mahasiswa') ? 'active' : '' }}" href="{{ route('mahasiswa') }}">
+    <div class="sb-nav-link-icon"><i class="fas fa-book-open"></i></div>
+     profil mahasiswa
+</a>
                            <a class="nav-link {{ request()->routeIs('bimbingan') ? 'active' : '' }}" href="{{ route('bimbingan') }}">
     <div class="sb-nav-link-icon"><i class="fas fa-book-open"></i></div>
     Logbook Bimbingan

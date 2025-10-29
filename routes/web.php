@@ -30,6 +30,11 @@ Route::get('/bimbingan', function () {
         return view('dashboard_dosen'); // Kita akan buat view ini
     })->name('dosen'); // Beri nama agar mudah dipanggil
 
+    Route::get('/mahasiswa', function () {
+        // Nanti di sini kita akan ambil data bimbingan dari database
+        return view('mahasiswa'); // Kita akan buat view ini
+    })->name('mahasiswa'); // Beri nama agar mudah dipanggil
+
 });
 
 
