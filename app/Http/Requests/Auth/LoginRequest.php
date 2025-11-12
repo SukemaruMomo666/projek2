@@ -1,14 +1,14 @@
 <?php
-
+ 
 namespace App\Http\Requests\Auth;
-
+ 
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-
+ 
 class LoginRequest extends FormRequest
 {
     /**
@@ -18,7 +18,7 @@ class LoginRequest extends FormRequest
     {
         return true;
     }
-
+ 
     /**
      * Get the validation rules that apply to the request.
      *
@@ -31,27 +31,29 @@ class LoginRequest extends FormRequest
             'password' => ['required', 'string'],
         ];
     }
-
+ 
     /**
      * Attempt to authenticate the request's credentials.
      *
      * @throws \Illuminate\Validation\ValidationException
      */
-public function authenticate(): void
-{
-    $this->ensureIsNotRateLimited();
-
-    // GANTI 'email' di baris ini...
-    if (! Auth::attempt(['nim' => $this->input('nim'), 'password' => $this->input('password')], $this->boolean('remember'))) {
-        RateLimiter::hit($this->throttleKey());
-
-        throw ValidationException::withMessages([
-            'nim' => trans('auth.failed'), // ...dan di baris ini
-        ]);
+    public function authenticate(): void
+    {
+        $this->ensureIsNotRateLimited();
+ 
+        // LOGIKA UTAMA: Login menggunakan NIM
+        if (! Auth::attempt(['nim' => $this->input('nim'), 'password' => $this->input('password')], $this->boolean('remember'))) {
+            
+            RateLimiter::hit($this->throttleKey());
+ 
+            throw ValidationException::withMessages([
+                'nim' => trans('auth.failed'), // Error akan muncul di bawah input NIM
+            ]);
+        }
+ 
+        RateLimiter::clear($this->throttleKey());
     }
-
-    RateLimiter::clear($this->throttleKey());
-}
+ 
     /**
      * Ensure the login request is not rate limited.
      *
@@ -62,25 +64,25 @@ public function authenticate(): void
         if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
             return;
         }
-
+ 
         event(new Lockout($this));
-
+ 
         $seconds = RateLimiter::availableIn($this->throttleKey());
-
+ 
         throw ValidationException::withMessages([
-            'email' => trans('auth.throttle', [
+            'nim' => trans('auth.throttle', [ // PERBAIKAN: Ubah 'email' jadi 'nim'
                 'seconds' => $seconds,
                 'minutes' => ceil($seconds / 60),
             ]),
         ]);
     }
-
+ 
     /**
      * Get the rate limiting throttle key for the request.
      */
-public function throttleKey(): string
-{
-    // GANTI 'email' di baris ini
-    return Str::transliterate(Str::lower($this->input('nim')).'|'.$this->ip());
-}
+    public function throttleKey(): string
+    {
+        // Gunakan NIM untuk membatasi percobaan login
+        return Str::transliterate(Str::lower($this->input('nim')).'|'.$this->ip());
+    }
 }
