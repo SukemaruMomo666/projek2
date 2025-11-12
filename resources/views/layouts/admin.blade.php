@@ -28,6 +28,7 @@ crossorigin="anonymous"></script>
         @stack('styles') 
     </head> 
     <body class="sb-nav-fixed"> 
+         
         <!-- NAVBAR ATAS --> 
         <nav class="sb-topnav navbar navbar-expand navbar-dark 
 bg-dark"> 
@@ -85,53 +86,83 @@ id="sidenavAccordion">
                     <div class="sb-sidenav-menu"> 
                         <div class="nav"> 
                              
-                            <!-- MENU UTAMA --> 
-                            <div 
-class="sb-sidenav-menu-heading">Utama</div> 
-                            <a class="nav-link {{ 
+                            <!-- ================= MENU MAHASISWA 
+================= --> 
+                            @if(Auth::user()->role === 'mahasiswa') 
+                                <div 
+class="sb-sidenav-menu-heading">Mahasiswa</div> 
+                                 
+                                <a class="nav-link {{ 
 request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ 
 route('dashboard') }}"> 
-                                <div class="sb-nav-link-icon"><i 
+                                    <div class="sb-nav-link-icon"><i 
 class="fas fa-tachometer-alt"></i></div> 
-                                Dashboard 
-                            </a> 
+                                    Dashboard 
+                                </a> 
  
-                            <!-- MENU AKADEMIK --> 
-                            <div 
-class="sb-sidenav-menu-heading">Akademik</div> 
-                             
-                            <!-- 1. Logbook --> 
-                            <a class="nav-link {{ 
+                                <a class="nav-link {{ 
 request()->routeIs('logbook') ? 'active' : '' }}" href="{{ 
 route('logbook') }}"> 
-                                <div class="sb-nav-link-icon"><i 
+                                    <div class="sb-nav-link-icon"><i 
 class="fas fa-book-open"></i></div> 
-                                Logbook Bimbingan 
-                            </a> 
+                                    Logbook Bimbingan 
+                                </a> 
  
-                            <!-- 2. Upload Dokumen Revisi --> 
-                            <a class="nav-link {{ 
+                                <a class="nav-link {{ 
 request()->routeIs('upload') ? 'active' : '' }}" href="{{ 
 route('upload') }}"> 
-                                <div class="sb-nav-link-icon"><i 
+                                    <div class="sb-nav-link-icon"><i 
 class="fas fa-file-upload"></i></div> 
-                                Dokumen Skripsi 
-                            </a> 
+                                    Dokumen Skripsi 
+                                </a> 
  
-                            <!-- 3. Jadwal (Placeholder) --> 
-<a class="nav-link {{ request()->routeIs('jadwal') ? 'active' : 
-'' }}" href="{{ route('jadwal') }}"> 
-    <div class="sb-nav-link-icon"><i class="fas 
-fa-calendar-alt"></i></div> 
-    Jadwal Dosen 
-</a> 
+                                <a class="nav-link {{ 
+request()->routeIs('jadwal') ? 'active' : '' }}" href="{{ 
+route('jadwal') }}"> 
+                                    <div class="sb-nav-link-icon"><i 
+class="fas fa-calendar-alt"></i></div> 
+                                    Jadwal Dosen 
+                                </a> 
+                            @endif 
  
-                            <!-- MENU AKUN --> 
+ 
+                            <!-- ================= MENU DOSEN 
+================= --> 
+                            @if(Auth::user()->role === 'dosen') 
+                                <div 
+class="sb-sidenav-menu-heading">Dosen</div> 
+                                 
+                                <a class="nav-link {{ 
+request()->routeIs('dosen.dashboard') ? 'active' : '' }}" href="{{ 
+route('dosen.dashboard') }}"> 
+                                    <div class="sb-nav-link-icon"><i 
+class="fas fa-chart-line"></i></div> 
+                                    Dashboard Dosen 
+                                </a> 
+ 
+                                <a class="nav-link" href="#"> <!-- 
+Placeholder link --> 
+                                    <div class="sb-nav-link-icon"><i 
+class="fas fa-user-graduate"></i></div> 
+                                    Data Mahasiswa 
+                                </a> 
+ 
+                                <a class="nav-link" href="#"> <!-- 
+Placeholder link --> 
+                                    <div class="sb-nav-link-icon"><i 
+class="fas fa-check-double"></i></div> 
+                                    Validasi Dokumen 
+                                </a> 
+                            @endif 
+ 
+ 
+                            <!-- ================= MENU UMUM (SEMUA 
+USER) ================= --> 
                             <div 
 class="sb-sidenav-menu-heading">Akun</div> 
                             <a class="nav-link {{ 
-request()->routeIs('profil') ? 'active' : '' }}" href="{{ 
-route('profil') }}"> 
+request()->routeIs('profile.edit') ? 'active' : '' }}" href="{{ 
+route('profile.edit') }}"> 
                                 <div class="sb-nav-link-icon"><i 
 class="fas fa-user-cog"></i></div> 
                                 Profil Saya 
