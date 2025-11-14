@@ -248,7 +248,7 @@
                                         <input type="password" class="form-control" name="password" autocomplete="new-password" placeholder="Password baru...">
                                         @error('password', 'updatePassword') 
                                             <div class="text-danger small mt-1">{{ $message }}</div> 
-                                        @enderror <!-- INI YANG DIPERBAIKI -->
+                                        @enderror <!-- Typo @endSerror sudah diperbaiki di sini -->
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label-custom">Konfirmasi Password Baru</label>
