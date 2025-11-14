@@ -13,7 +13,6 @@
 
         <!-- Styles -->
         <link href="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/style.min.css" rel="stylesheet" />
-        <!-- Pastikan file styles.css ada di folder public/css -->
         <link href="{{ asset('css/styles.css') }}" rel="stylesheet" />
         <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
 
@@ -24,14 +23,9 @@
         
         <!-- NAVBAR ATAS -->
         <nav class="sb-topnav navbar navbar-expand navbar-dark bg-dark">
-            <!-- Navbar Brand-->
             <a class="navbar-brand ps-3" href="{{ route('dashboard') }}">Bimbingan JTIK</a>
-            <!-- Sidebar Toggle-->
             <button class="btn btn-link btn-sm order-1 order-lg-0 me-4 me-lg-0" id="sidebarToggle" href="#!"><i class="fas fa-bars"></i></button>
-            
-            <!-- Spacer -->
             <div class="d-none d-md-inline-block form-inline ms-auto me-0 me-md-3 my-2 my-md-0"></div>
-            
             <!-- User Menu -->
             <ul class="navbar-nav ms-auto ms-md-0 me-3 me-lg-4">
                 <li class="nav-item dropdown">
@@ -42,12 +36,10 @@
                         <li><a class="dropdown-item" href="{{ route('profile.edit') }}">Profil Saya</a></li>
                         <li><hr class="dropdown-divider" /></li>
                         <li>
-                            <!-- Logout Form -->
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
                                 <a class="dropdown-item" href="{{ route('logout') }}"
-                                   onclick="event.preventDefault();
-                                            this.closest('form').submit();">
+                                   onclick="event.preventDefault(); this.closest('form').submit();">
                                     {{ __('Log Out') }}
                                 </a>
                             </form>
@@ -92,22 +84,48 @@
 
                             @elseif(Auth::user()->role == 'dosen')
                                 
-                                <!-- === MENU DOSEN === -->
+                                <!-- === MENU DOSEN (SUDAH DIPERBAIKI) === -->
                                 <div class="sb-sidenav-menu-heading">Utama</div>
                                 <a class="nav-link {{ request()->routeIs('dosen.dashboard') ? 'active' : '' }}" href="{{ route('dosen.dashboard') }}">
                                     <div class="sb-nav-link-icon"><i class="fas fa-tachometer-alt"></i></div>
                                     Dashboard Dosen
                                 </a>
                                 
-                                <div class="sb-sidenav-menu-heading">Bimbingan</div>
-                                <a class="nav-link" href="#">
-                                    <div class="sb-nav-link-icon"><i class="fas fa-user-check"></i></div>
-                                    Validasi Bimbingan
-                                </a>
-                                <a class="nav-link" href="#">
+                                <div class="sb-sidenav-menu-heading">Manajemen Bimbingan</div>
+                                
+                                <a class="nav-link {{ request()->routeIs('dosen.mahasiswa.index') ? 'active' : '' }}" href="{{ route('dosen.mahasiswa.index') }}">
                                     <div class="sb-nav-link-icon"><i class="fas fa-users"></i></div>
                                     Data Mahasiswa
                                 </a>
+                                
+                                <a class="nav-link collapsed {{ (request()->routeIs('dosen.validasi.logbook.index') || request()->routeIs('dosen.validasi.dokumen.index')) ? 'active' : '' }}" 
+                                   href="#" data-bs-toggle="collapse" data-bs-target="#collapseValidasi" aria-expanded="false" aria-controls="collapseValidasi">
+                                    <div class="sb-nav-link-icon"><i class="fas fa-user-check"></i></div>
+                                    Ruang Validasi
+                                    <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
+                                </a>
+                                <div class="collapse {{ (request()->routeIs('dosen.validasi.logbook.index') || request()->routeIs('dosen.validasi.dokumen.index')) ? 'show' : '' }}" id="collapseValidasi" data-bs-parent="#sidenavAccordion">
+                                    <nav class="sb-sidenav-menu-nested nav">
+                                        <a class="nav-link {{ request()->routeIs('dosen.validasi.logbook.index') ? 'active' : '' }}" href="{{ route('dosen.validasi.logbook.index') }}">
+                                            <i class="fas fa-book-open me-2"></i> Validasi Logbook
+                                        </a>
+                                        <a class="nav-link {{ request()->routeIs('dosen.validasi.dokumen.index') ? 'active' : '' }}" href="{{ route('dosen.validasi.dokumen.index') }}">
+                                            <i class="fas fa-file-upload me-2"></i> Validasi Dokumen
+                                        </a>
+                                    </nav>
+                                </div>
+
+                                <!-- === INI TAMBAHAN BARU === -->
+                                <a class="nav-link {{ request()->routeIs('dosen.jadwal.index') ? 'active' : '' }}" href="{{ route('dosen.jadwal.index') }}">
+                                    <div class="sb-nav-link-icon"><i class="fas fa-calendar-check"></i></div>
+                                    Kelola Jadwal
+                                </a>
+                                
+                                <a class="nav-link {{ request()->routeIs('dosen.arsip.index') ? 'active' : '' }}" href="{{ route('dosen.arsip.index') }}">
+                                    <div class="sb-nav-link-icon"><i class="fas fa-archive"></i></div>
+                                    Arsip Skripsi
+                                </a>
+                                <!-- === AKHIR TAMBAHAN === -->
 
                             @endif
 
@@ -130,10 +148,8 @@
             <!-- KONTEN UTAMA -->
             <div id="layoutSidenav_content">
                 <main>
-                    <!-- Ini adalah wadah isi halaman -->
                     @yield('content')
                 </main>
-
                 <footer class="py-4 bg-light mt-auto">
                     <div class="container-fluid px-4">
                         <div class="d-flex align-items-center justify-content-between small">
@@ -149,24 +165,12 @@
             </div>
         </div>
 
-        <!-- 
-        ================================================================
-        INI BAGIAN PENTING YANG MEMBUAT MODAL BEKERJA
-        ================================================================
-        -->
+        <!-- Scripts -->
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
         <script src="{{ asset('js/scripts.js') }}"></script>
         
-        <!-- Stack Scripts untuk Halaman Tertentu (cth: DataTables) -->
+        <!-- Stack Scripts untuk Halaman Tertentu -->
         @stack('scripts')
         
     </body>
 </html>
-```
-
-### Langkah Terakhir (Wajib)
-
-Setelah kamu menyimpan file `admin.blade.php` yang baru ini, jalankan perintah ini di **Terminal Laragon** untuk membersihkan *cache* view:
-
-```bash
-php artisan view:clear

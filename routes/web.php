@@ -8,6 +8,7 @@ use App\Http\Controllers\BimbinganController;
 use App\Models\Bimbingan; // Diperlukan untuk Dashboard
 use App\Http\Controllers\DokumenController; // Diperlukan untuk Dokumen
 use App\Http\Controllers\JadwalController; // Diperlukan untuk Jadwal
+use App\Http\Controllers\DosenController; // Diperlukan untuk Dashboard Dosen
 
 /*
 |--------------------------------------------------------------------------
@@ -15,15 +16,18 @@ use App\Http\Controllers\JadwalController; // Diperlukan untuk Jadwal
 |--------------------------------------------------------------------------
 */
 
-// --- 1. RUTE PUBLIK & OTENTIKASI ---
+// --- 1. RUTE PUBLIK & OTENTIKASI (HANYA UNTUK TAMU) ---
+Route::middleware('guest')->group(function () {
+    
+    Route::get('/', function () {
+        return view('auth.login');
+    });
 
-Route::get('/', function () {
-    return view('auth.login');
+    // Login Microsoft
+    Route::get('/auth/microsoft/redirect', [SocialiteController::class, 'microsoftRedirect'])->name('login.microsoft.redirect');
+    Route::get('/auth/microsoft/callback', [SocialiteController::class, 'microsoftCallback'])->name('login.microsoft.callback');
+
 });
-
-// Login Microsoft
-Route::get('/auth/microsoft/redirect', [SocialiteController::class, 'microsoftRedirect'])->name('login.microsoft.redirect');
-Route::get('/auth/microsoft/callback', [SocialiteController::class, 'microsoftCallback'])->name('login.microsoft.callback');
 
 
 // --- 2. RUTE GLOBAL (SEMUA YANG SUDAH LOGIN) ---
@@ -94,11 +98,31 @@ Route::middleware(['auth', 'role:mahasiswa'])->group(function () {
 // Hanya bisa diakses jika role = dosen
 Route::middleware(['auth', 'role:dosen'])->prefix('dosen')->name('dosen.')->group(function () {
     
-    Route::get('/dashboard', function () {
-        return view('dosen.dashboard');
-    })->name('dashboard');
+    // Dashboard Dosen (Menampilkan data dinamis)
+    Route::get('/dashboard', [DosenController::class, 'index'])->name('dashboard');
 
-    // Tambahkan rute dosen lainnya di sini nanti (Validasi, Data Mahasiswa, dll)
+    // Validasi Logbook
+    Route::get('/validasi-logbook', [DosenController::class, 'showLogbookValidasi'])->name('validasi.logbook.index');
+    Route::post('/validasi-logbook', [DosenController::class, 'storeLogbookValidasi'])->name('validasi.logbook.store');
+    
+    // Validasi Dokumen
+    Route::get('/validasi-dokumen', [DosenController::class, 'showDokumenValidasi'])->name('validasi.dokumen.index');
+    Route::post('/validasi-dokumen', [DosenController::class, 'storeDokumenValidasi'])->name('validasi.dokumen.store');
+
+    // Data Mahasiswa
+    Route::get('/mahasiswa', [DosenController::class, 'showMahasiswaList'])->name('mahasiswa.index');
+
+    // === RUTE BARU YANG DITAMBAHKAN ===
+    // Kelola Jadwal
+    Route::get('/kelola-jadwal', [DosenController::class, 'showJadwalValidasi'])->name('jadwal.index');
+    Route::post('/kelola-jadwal', [DosenController::class, 'storeJadwalValidasi'])->name('jadwal.store');
+
+    // Arsip Skripsi (Placeholder)
+    Route::get('/arsip', function() {
+        // Nanti kita buat view-nya
+        return "Halaman Arsip Skripsi (Dalam Pengerjaan)";
+    })->name('arsip.index');
+    // === AKHIR RUTE BARU ===
 
 });
 
