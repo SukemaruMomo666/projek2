@@ -11,6 +11,7 @@
         "laravel/framework": "^12.0",
         "laravel/socialite": "^5.23",
         "laravel/tinker": "^2.10.1",
+        "maatwebsite/excel": "^3.1",
         "socialiteproviders/microsoft": "^4.7"
     },
     "require-dev": {
@@ -72,7 +73,8 @@
         "sort-packages": true,
         "allow-plugins": {
             "pestphp/pest-plugin": true,
-            "php-http/discovery": true
+            "php-http/discovery": true,
+            "maatwebsite/excel": true
         }
     },
     "minimum-stability": "stable",
