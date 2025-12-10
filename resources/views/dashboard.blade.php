@@ -9,7 +9,6 @@
     
     .stat-card { border: none; border-radius: 15px; transition: transform 0.3s ease, box-shadow 0.3s ease; }
     .stat-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.08); }
-    .stat-icon { opacity: 0.2; font-size: 3.5rem; position: absolute; right: 20px; top: 15px; }
     
     .card-header-custom { background-color: white; border-bottom: 1px solid #f0f0f0; font-weight: 600; padding: 1rem 1.5rem; border-radius: 15px 15px 0 0 !important; }
     
@@ -43,17 +42,22 @@
     if (str_contains($prodi, 'sistem informasi') && $semester >= 5) $isSkripsi = true;
     elseif (str_contains($prodi, 'rekayasa perangkat lunak') && $semester >= 7) $isSkripsi = true;
 
-    // Logika Progress Bar Skripsi (Sederhana berdasarkan logbook terakhir)
-    $tahapanSkripsi = ['Judul', 'Bab 1', 'Bab 2', 'Bab 3', 'Bab 4', 'Bab 5', 'Sidang'];
-    $currentStepIndex = 0;
+    // --- PERBAIKAN LOGIKA PROGRESS BAR ---
+    // Kita cek apakah mahasiswa SUDAH PERNAH mencatat bab tertentu
+    // Logic: Jika ada logbook yang mengandung kata "Bab 1", maka step Bab 1 dianggap selesai/aktif
     
-    if ($logbooksTerkini->count() > 0) {
-        $lastMateri = $logbooksTerkini->first()->materi;
-        foreach ($tahapanSkripsi as $index => $tahap) {
-            if (str_contains($lastMateri, $tahap)) {
-                $currentStepIndex = $index + 1; // +1 karena index mulai 0
-                break;
-            }
+    $tahapanSkripsi = ['Judul', 'Bab 1', 'Bab 2', 'Bab 3', 'Bab 4', 'Bab 5', 'Sidang'];
+    $currentStepIndex = 0; // Default di awal
+
+    // Cek riwayat dari logbook yang ada
+    foreach ($tahapanSkripsi as $index => $tahap) {
+        // Cek apakah ada logbook yang materinya mengandung nama tahapan (misal "Bab 1")
+        $sudahAda = $logbooks->filter(function ($item) use ($tahap) {
+            return str_contains($item->materi, $tahap);
+        })->isNotEmpty();
+
+        if ($sudahAda) {
+            $currentStepIndex = $index + 1; // Maju ke step ini
         }
     }
 @endphp
@@ -107,12 +111,17 @@
                     @php 
                         $statusClass = '';
                         $icon = $index + 1;
+                        
+                        // Logic: Jika index lebih kecil dari currentStep, berarti SUDAH LEWAT (Completed)
                         if ($index < $currentStepIndex) {
                             $statusClass = 'completed'; 
                             $icon = '<i class="fas fa-check"></i>';
-                        } elseif ($index == $currentStepIndex) {
+                        } 
+                        // Jika index sama dengan currentStep, berarti SEDANG BERLANGSUNG (Active)
+                        elseif ($index == $currentStepIndex) { // Ubah logika agar step saat ini menyala
                             $statusClass = 'active'; 
                         }
+                        // Jika logbook Bab 1 ada tapi statusnya 'Disetujui', maka dia completed, current step maju ke bab 2
                     @endphp
                     <div class="step-item {{ $statusClass }}">
                         <div class="step-circle">{!! $icon !!}</div>
