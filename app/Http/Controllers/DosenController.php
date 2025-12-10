@@ -9,55 +9,57 @@ use App\Models\Jadwal;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
+use Carbon\Carbon;
 
 class DosenController extends Controller
 {
     /**
-     * Menampilkan data dinamis untuk Dashboard Dosen.
+     * Dashboard Utama Dosen (Data Real-Time)
      */
     public function index()
     {
-        $dosen = Auth::user();
-        $mahasiswaIds = $dosen->mahasiswaBimbingan->pluck('id');
+        $dosenId = Auth::id();
 
-        // Data untuk Statistik
-        $logbookMenunggu = Bimbingan::whereIn('mahasiswa_id', $mahasiswaIds)
-                                    ->where('status', 'Menunggu')
-                                    ->with('mahasiswa')
-                                    ->get();
-
-        $dokumenMenunggu = Dokumen::whereIn('mahasiswa_id', $mahasiswaIds)
-                                    ->where('status', 'Menunggu')
-                                    ->with('mahasiswa')
-                                    ->get();
+        // 1. STATISTIK UTAMA
+        $totalMahasiswa = User::where('role', 'mahasiswa')->where('dosen_pembimbing_id', $dosenId)->count();
+        $menungguReview = Bimbingan::where('dosen_id', $dosenId)->where('status', 'Menunggu')->count();
+        $jadwalHariIni = Jadwal::where('dosen_id', $dosenId)->where('status', 'Disetujui')->whereDate('tanggal_pertemuan', Carbon::today())->count();
         
-        $totalMahasiswa = $mahasiswaIds->count();
-        $totalReview = $logbookMenunggu->count() + $dokumenMenunggu->count();
-        $totalJadwal = Jadwal::where('dosen_id', $dosen->id)
-                                ->where('status', 'Menunggu')
-                                ->count();
-        
-        // Data untuk Tabel Validasi Terbaru
-        $validasiTerbaru = $logbookMenunggu->map(function ($item) {
-            $item->tipe = 'Logbook';
-            $item->judul = $item->materi;
-            return $item;
-        })->merge($dokumenMenunggu->map(function ($item) {
-            $item->tipe = 'Dokumen';
-            $item->judul = $item->kategori;
-            return $item;
-        }))->sortByDesc('created_at')->take(5);
+        // Logika Siap Sidang: Mahasiswa yang Logbook Bab 5-nya sudah ACC
+        $siapSidang = Bimbingan::where('dosen_id', $dosenId)
+                               ->where('materi', 'like', '%Bab 5%')
+                               ->where('status', 'Disetujui')
+                               ->distinct('mahasiswa_id')
+                               ->count();
 
-        return view('dosen.dashboard', [
-            'totalMahasiswa' => $totalMahasiswa,
-            'totalReview' => $totalReview,
-            'totalJadwal' => $totalJadwal,
-            'validasiTerbaru' => $validasiTerbaru,
-        ]);
+        // 2. TABEL: LOGBOOK PERLU VALIDASI (5 Teratas)
+        $latestValidations = Bimbingan::with('mahasiswa')
+                                      ->where('dosen_id', $dosenId)
+                                      ->where('status', 'Menunggu')
+                                      ->orderBy('created_at', 'desc')
+                                      ->take(5)
+                                      ->get();
+
+        // 3. TABEL: JADWAL MENUNGGU KONFIRMASI (Agar muncul di dashboard)
+        $jadwalPending = Jadwal::with('mahasiswa')
+                               ->where('dosen_id', $dosenId)
+                               ->whereIn('status', ['Menunggu', 'Reschedule']) // Tampilkan juga yang sedang Reschedule (nunggu mhs)
+                               ->orderBy('tanggal_pertemuan', 'asc')
+                               ->get();
+
+        return view('dosen.dashboard', compact(
+            'totalMahasiswa', 
+            'menungguReview', 
+            'jadwalHariIni', 
+            'siapSidang', 
+            'latestValidations',
+            'jadwalPending'
+        ));
     }
 
-    // --- Validasi Logbook ---
+    // ========================================================================
+    // VALIDASI LOGBOOK
+    // ========================================================================
 
     public function showLogbookValidasi()
     {
@@ -98,7 +100,9 @@ class DosenController extends Controller
                          ->with('success', 'Logbook berhasil direview!');
     }
 
-    // --- Validasi Dokumen ---
+    // ========================================================================
+    // VALIDASI DOKUMEN
+    // ========================================================================
 
     public function showDokumenValidasi()
     {
@@ -139,13 +143,16 @@ class DosenController extends Controller
                          ->with('success', 'Dokumen berhasil direview!');
     }
 
-    // --- Data Mahasiswa ---
+    // ========================================================================
+    // DATA MAHASISWA
+    // ========================================================================
     
     public function showMahasiswaList()
     {
         $dosen = Auth::user();
         
-        $mahasiswas = $dosen->mahasiswaBimbingan()
+        $mahasiswas = User::where('dosen_pembimbing_id', $dosen->id)
+                           ->where('role', 'mahasiswa')
                            ->orderBy('semester', 'desc')
                            ->orderBy('name', 'asc')
                            ->get();
@@ -155,23 +162,23 @@ class DosenController extends Controller
         ]);
     }
 
-    // --- FUNGSI BARU UNTUK KELOLA JADWAL ---
+    // ========================================================================
+    // KELOLA JADWAL (FITUR TERIMA / TOLAK / RESCHEDULE)
+    // ========================================================================
     
     public function showJadwalValidasi()
     {
         $dosen = Auth::user();
         
-        // Ambil semua jadwal yang ditujukan ke dosen ini
         $jadwals = Jadwal::where('dosen_id', $dosen->id)
                          ->with('mahasiswa')
                          ->orderBy('tanggal_pertemuan', 'desc')
                          ->get();
 
-        // Pisahkan berdasarkan status
-        $jadwalMenunggu = $jadwals->where('status', 'Menunggu');
+        $jadwalMenunggu = $jadwals->whereIn('status', ['Menunggu', 'Reschedule']); 
         $jadwalSelesai = $jadwals->whereIn('status', ['Disetujui', 'Ditolak']);
 
-        return view('dosen.kelola-jadwal', [ // Kita akan buat view ini
+        return view('dosen.kelola-jadwal', [
             'jadwalMenunggu' => $jadwalMenunggu,
             'jadwalSelesai' => $jadwalSelesai,
         ]);
@@ -179,30 +186,43 @@ class DosenController extends Controller
 
     public function storeJadwalValidasi(Request $request)
     {
-        // 1. Validasi (Sederhana, karena hanya tombol)
         $request->validate([
             'jadwal_id' => 'required|exists:jadwals,id',
-            'status' => 'required|in:Disetujui,Ditolak',
+            'aksi'      => 'required|in:terima,tolak,reschedule',
+            'pesan'     => 'nullable|string',
+            'tanggal_baru' => 'required_if:aksi,reschedule|nullable|date',
+            'jam_baru'     => 'required_if:aksi,reschedule|nullable',
         ]);
 
-        // 2. Cari jadwalnya
         $jadwal = Jadwal::find($request->jadwal_id);
 
-        // 3. Pastikan dosen ini berhak
         if ($jadwal->dosen_id != Auth::id()) {
             abort(403);
         }
 
-        // 4. Update status
-        $jadwal->status = $request->status;
-        // Jika ditolak, tambahkan catatan (bisa dikembangkan nanti)
-        if ($request->status == 'Ditolak') {
-            $jadwal->catatan_dosen = "Ditolak oleh dosen.";
+        // LOGIKA UTAMA
+        if ($request->aksi == 'terima') {
+            $jadwal->status = 'Disetujui';
+            if($request->pesan) $jadwal->catatan_dosen = $request->pesan;
+        
+        } elseif ($request->aksi == 'tolak') {
+            $jadwal->status = 'Ditolak';
+            $jadwal->catatan_dosen = $request->pesan ?? 'Jadwal tidak cocok.';
+        
+        } elseif ($request->aksi == 'reschedule') {
+            $jadwal->status = 'Reschedule';
+            $jadwal->waktu_reschedule = $request->tanggal_baru . ' ' . $request->jam_baru;
+            $jadwal->catatan_dosen = $request->pesan ?? 'Saya mengajukan waktu pengganti.';
         }
+
         $jadwal->save();
 
-        // 5. Kembalikan ke halaman kelola jadwal
-        return redirect()->route('dosen.jadwal.index')
-                         ->with('success', 'Jadwal berhasil di-update!');
+        // Redirect kembali (bisa ke dashboard atau halaman kelola jadwal)
+        return back()->with('success', 'Status jadwal berhasil diperbarui.');
+    }
+    
+    // --- Arsip ---
+    public function showArsip() {
+        return view('dosen.arsip');
     }
 }

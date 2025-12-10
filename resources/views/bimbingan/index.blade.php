@@ -4,7 +4,6 @@
 
 @push('styles')
 <style>
-    /* ... (CSS Anda tetap sama) ... */
     .card-header-actions { display: flex; justify-content: space-between; align-items: center; }
     .status-badge { font-size: 0.75rem; padding: 0.4em 0.8em; border-radius: 20px; font-weight: 600; letter-spacing: 0.5px; }
     .table-logbook th { background-color: #f8f9fa; font-weight: 600; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.5px; color: #6c757d; border-bottom: 2px solid #e9ecef; }
@@ -19,19 +18,15 @@
 
 @section('content')
 
-{{-- LOGIKA PHP: CEK LEVEL MAHASISWA --}}
+{{-- LOGIKA CEK LEVEL MAHASISWA --}}
 @php
     $user = Auth::user();
     $prodi = strtolower($user->prodi ?? '');
     $semester = $user->semester ?? 0;
     
     $isSkripsi = false; 
-
-    if (str_contains($prodi, 'sistem informasi') && $semester >= 5) {
-        $isSkripsi = true;
-    } elseif (str_contains($prodi, 'rekayasa perangkat lunak') && $semester >= 7) {
-        $isSkripsi = true;
-    }
+    if (str_contains($prodi, 'sistem informasi') && $semester >= 5) $isSkripsi = true;
+    elseif (str_contains($prodi, 'rekayasa perangkat lunak') && $semester >= 7) $isSkripsi = true;
 @endphp
 
 <div class="container-fluid px-4">
@@ -39,22 +34,18 @@
     <div class="d-flex justify-content-between align-items-center mt-4 mb-4">
         <div>
             <h1 class="h2 mb-0 fw-bold text-dark">Logbook Bimbingan</h1>
-            <p class="text-muted mb-0">Catat hasil bimbinganmu berdasarkan jadwal yang telah disetujui.</p>
+            <p class="text-muted mb-0">
+                @if($isSkripsi) Rekam jejak Skripsi @else Rekam jejak Akademik & Perwalian @endif
+            </p>
         </div>
         <div>
             <a href="{{ route('bimbingan.cetak') }}" target="_blank" class="btn btn-outline-dark me-2">
                 <i class="fas fa-print me-1"></i> Cetak
             </a>
             
-            @if(Auth::user()->dosen_pembimbing_id)
-                <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#addLogModal">
-                    <i class="fas fa-plus me-1"></i> Catat Bimbingan
-                </button>
-            @else
-                <button class="btn btn-secondary shadow-sm" disabled title="Hubungi Admin untuk plotting dosen">
-                    <i class="fas fa-lock me-1"></i> Catat Bimbingan
-                </button>
-            @endif
+            <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#addLogModal">
+                <i class="fas fa-plus me-1"></i> Catat Bimbingan
+            </button>
         </div>
     </div>
 
@@ -72,19 +63,13 @@
                     <div class="card-body">
                         <div class="d-flex align-items-center">
                             <div class="flex-grow-1">
-                                <div class="small fw-bold text-{{ $jumlahPerwalian >= 3 ? 'success' : 'danger' }} mb-1">
-                                    TARGET PERWALIAN
-                                </div>
-                                <div class="h3 mb-0 fw-bold">
-                                    {{ $jumlahPerwalian }} <span class="text-muted fs-6">/ 3 Kali</span>
-                                </div>
+                                <div class="small fw-bold text-{{ $jumlahPerwalian >= 3 ? 'success' : 'danger' }} mb-1">TARGET PERWALIAN</div>
+                                <div class="h3 mb-0 fw-bold">{{ $jumlahPerwalian }} <span class="text-muted fs-6">/ 3 Kali</span></div>
                                 <small class="text-muted" style="font-size: 0.75rem">
                                     {{ $jumlahPerwalian < 3 ? 'Kurang ' . (3 - $jumlahPerwalian) . ' kali lagi!' : 'Target tercapai!' }}
                                 </small>
                             </div>
-                            <div class="ms-3 text-{{ $jumlahPerwalian >= 3 ? 'success' : 'danger' }} opacity-50">
-                                <i class="fas fa-user-friends fa-2x"></i>
-                            </div>
+                            <div class="ms-3 text-{{ $jumlahPerwalian >= 3 ? 'success' : 'danger' }} opacity-50"><i class="fas fa-user-friends fa-2x"></i></div>
                         </div>
                     </div>
                 </div>
@@ -102,6 +87,7 @@
                 </div>
             @endif
         </div>
+
         <div class="col-md-4">
             <div class="card border-0 shadow-sm border-start border-success border-4">
                 <div class="card-body">
@@ -115,12 +101,13 @@
                 </div>
             </div>
         </div>
+
         <div class="col-md-4">
             <div class="card border-0 shadow-sm border-start border-warning border-4">
                 <div class="card-body">
                     <div class="d-flex align-items-center">
                         <div class="flex-grow-1">
-                            <div class="small fw-bold text-warning mb-1">Dosen Pembimbing</div>
+                            <div class="small fw-bold text-warning mb-1">Pembimbing</div>
                             <div class="h6 mb-0 fw-bold text-truncate" style="max-width: 150px;">
                                 {{ Auth::user()->dosenPembimbing->name ?? 'Belum Ada' }}
                             </div>
@@ -162,7 +149,6 @@
                                 @php
                                     $badgeColor = 'bg-secondary';
                                     $topik = Str::before($log->materi, ':'); 
-
                                     if(str_contains($topik, 'Perwalian')) $badgeColor = 'bg-primary';
                                     if(str_contains($topik, 'Lomba')) $badgeColor = 'bg-success';
                                     if(str_contains($topik, 'Bab')) $badgeColor = 'bg-warning text-dark';
@@ -182,21 +168,15 @@
                             </td>
                             <td>
                                 @if ($log->file_path)
-                                    <a href="{{ Storage::url($log->file_path) }}" target="_blank" class="btn btn-sm btn-outline-primary w-100">
-                                        <i class="fas fa-file-alt me-1"></i> Lihat
-                                    </a>
+                                    <a href="{{ Storage::url($log->file_path) }}" target="_blank" class="btn btn-sm btn-outline-primary w-100"><i class="fas fa-file-alt me-1"></i> Lihat</a>
                                 @else
                                     <span class="text-muted small">-</span>
                                 @endif
                             </td>
                             <td class="text-center">
-                                @if ($log->status == 'Disetujui')
-                                    <span class="badge bg-success status-badge">ACC</span>
-                                @elseif ($log->status == 'Revisi')
-                                    <span class="badge bg-warning text-dark status-badge">REVISI</span>
-                                @else
-                                    <span class="badge bg-secondary status-badge">PENDING</span>
-                                @endif
+                                @if ($log->status == 'Disetujui') <span class="badge bg-success status-badge">ACC</span>
+                                @elseif ($log->status == 'Revisi') <span class="badge bg-warning text-dark status-badge">REVISI</span>
+                                @else <span class="badge bg-secondary status-badge">PENDING</span> @endif
                             </td>
                             <td class="text-end">
                                 @if($log->status == 'Menunggu')
@@ -208,9 +188,7 @@
                             </td>
                         </tr>
                         @empty
-                        <tr>
-                            <td colspan="6" class="text-center p-5 text-muted">Belum ada riwayat.</td>
-                        </tr>
+                        <tr><td colspan="6" class="text-center p-5 text-muted">Belum ada riwayat.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -231,9 +209,13 @@
                 <div class="modal-body p-4">
                     
                     <div class="alert alert-info d-flex align-items-center small py-2 mb-3">
-                        <i class="fas fa-lightbulb me-2 fs-5 text-warning"></i>
+                        <i class="fas fa-info-circle me-2 fs-5"></i>
                         <div>
-                            <strong>Tips:</strong> Anda bisa memilih jadwal yang sudah di-ACC agar tanggal dan topik terisi otomatis.
+                            @if(Auth::user()->dosen_pembimbing_id)
+                                Bimbingan ini akan diteruskan ke Dosen Pembimbing Skripsi Anda.
+                            @else
+                                Anda belum memiliki Pembimbing Skripsi. Log ini tercatat sebagai aktivitas akademik/umum.
+                            @endif
                         </div>
                     </div>
 
@@ -248,11 +230,9 @@
                                         <option value="{{ $jadwal->id }}" 
                                                 data-tanggal="{{ $jadwal->tanggal_pertemuan->format('Y-m-d') }}"
                                                 data-topik="{{ $jadwal->topik }}">
-                                            [ACC] {{ $jadwal->tanggal_pertemuan->format('d M Y') }} - {{ Str::limit($jadwal->topik, 40) }}
+                                            [ACC] {{ $jadwal->tanggal_pertemuan->format('d M') }} - {{ Str::limit($jadwal->topik, 40) }}
                                         </option>
                                     @endforeach
-                                @else
-                                    <option disabled>Tidak ada jadwal ACC yang tersedia.</option>
                                 @endif
                             </select>
                         </div>
@@ -263,7 +243,6 @@
                             <label for="tahapan" class="form-label fw-bold">Jenis Kegiatan</label>
                             <select class="form-select" id="tahapan" name="tahapan" required>
                                 <option value="" selected disabled>-- Pilih Kegiatan --</option>
-                                
                                 @if($isSkripsi)
                                     <option value="Pengajuan Judul">Pengajuan Judul</option>
                                     <option value="Bab 1">Bab 1: Pendahuluan</option>
@@ -273,19 +252,18 @@
                                     <option value="Bab 5">Bab 5: Penutup</option>
                                     <option value="Revisi">Revisi Umum</option>
                                 @else
-                                    <option value="Perwalian Ke-1">Perwalian Ke-1 (Awal Semester)</option>
-                                    <option value="Perwalian Ke-2">Perwalian Ke-2 (Tengah Semester)</option>
-                                    <option value="Perwalian Ke-3">Perwalian Ke-3 (Akhir Semester)</option>
-                                    <option value="Bimbingan Lomba">Bimbingan Lomba / Kompetisi</option>
-                                    <option value="Bimbingan Umum">Bimbingan Akademik Umum</option>
-                                    <option value="Konsultasi KRS">Konsultasi KRS</option>
+                                    <option value="Perwalian Ke-1">Perwalian Ke-1 (Awal)</option>
+                                    <option value="Perwalian Ke-2">Perwalian Ke-2 (Tengah)</option>
+                                    <option value="Perwalian Ke-3">Perwalian Ke-3 (Akhir)</option>
+                                    <option value="Bimbingan Lomba">Bimbingan Lomba</option>
+                                    <option value="Bimbingan Umum">Bimbingan Akademik</option>
                                 @endif
                             </select>
                         </div>
 
                         <div class="col-md-7">
                             <label for="detail_materi" class="form-label fw-bold">Topik Pembahasan</label>
-                            <input type="text" class="form-control" id="detail_materi" name="detail_materi" placeholder="Contoh: Diskusi nilai, rencana lomba, atau revisi..." required>
+                            <input type="text" class="form-control" id="detail_materi" name="detail_materi" placeholder="Contoh: Diskusi nilai / Revisi Bab 1..." required>
                         </div>
 
                         <div class="col-md-6">
@@ -294,13 +272,13 @@
                         </div>
 
                         <div class="col-md-6">
-                            <label for="file" class="form-label fw-bold">Bukti Foto / Dokumen (Opsional)</label>
+                            <label for="file" class="form-label fw-bold">Bukti Foto / Dokumen</label>
                             <input type="file" class="form-control" id="file" name="file" accept=".pdf,.jpg,.jpeg,.png,.docx">
                         </div>
 
                         <div class="col-md-12">
                             <label for="catatan_mahasiswa" class="form-label fw-bold">Hasil Diskusi</label>
-                            <textarea class="form-control" id="catatan_mahasiswa" name="catatan_mahasiswa" rows="4" placeholder="Tuliskan hasil arahan dosen..." required></textarea>
+                            <textarea class="form-control" id="catatan_mahasiswa" name="catatan_mahasiswa" rows="4" placeholder="Tuliskan poin penting arahan dosen..." required></textarea>
                         </div>
                     </div>
                 </div>
@@ -316,33 +294,16 @@
 <script>
     function isiOtomatis(selectObject) {
         var selectedOption = selectObject.options[selectObject.selectedIndex];
-        
-        // Ambil data dari atribut data-tanggal dan data-topik
         var tanggal = selectedOption.getAttribute('data-tanggal');
         var topik = selectedOption.getAttribute('data-topik');
 
         if (tanggal && topik) {
-            // Isi form otomatis
             document.getElementById('tanggal_bimbingan').value = tanggal;
             document.getElementById('detail_materi').value = topik;
             
-            // Opsional: Set Jenis Kegiatan ke 'Bimbingan Umum' atau 'Revisi' jika kosong
             var tahapan = document.getElementById('tahapan');
-            if(tahapan.value == "") {
-                // Set default value jika belum dipilih (bisa disesuaikan)
-                tahapan.selectedIndex = 1; 
-            }
-            
-            // Efek visual (kedip sebentar biar user tau berubah)
-            document.getElementById('detail_materi').style.backgroundColor = "#e8f0fe";
-            setTimeout(() => {
-                document.getElementById('detail_materi').style.backgroundColor = "white";
-            }, 500);
-        } else {
-            // Jika pilih manual, kosongkan atau biarkan user isi sendiri
-            // document.getElementById('detail_materi').value = ''; 
+            if(tahapan.value == "") tahapan.selectedIndex = 1; 
         }
     }
 </script>
-
 @endsection

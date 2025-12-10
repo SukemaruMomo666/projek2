@@ -13,14 +13,14 @@
     .lecturer-avatar { width: 80px; height: 80px; object-fit: cover; border: 3px solid #f1f5f9; }
     .badge-expertise { background-color: #e0f2fe; color: #0284c7; font-size: 0.7rem; font-weight: 600; }
     
-    /* Styling Kartu Jadwal yang Lebih Canggih */
+    /* Styling Kartu Jadwal */
     .schedule-card { border-left: 5px solid #ccc; transition: all 0.2s; }
     .schedule-card:hover { background-color: #f8f9fa; }
     
     .schedule-card.Menunggu { border-left-color: #ffc107; }   /* Kuning */
     .schedule-card.Disetujui { border-left-color: #198754; }  /* Hijau */
     .schedule-card.Ditolak { border-left-color: #dc3545; }    /* Merah */
-    .schedule-card.Reschedule { border-left-color: #0dcaf0; } /* Biru Muda (Reschedule) */
+    .schedule-card.Reschedule { border-left-color: #0dcaf0; } /* Biru Muda */
 
     .blink-badge { animation: blinker 1.5s linear infinite; }
     @keyframes blinker { 50% { opacity: 0.5; } }
@@ -33,7 +33,7 @@
     <div class="d-flex justify-content-between align-items-center mt-4 mb-4">
         <div>
             <h1 class="h2 fw-bold mb-0 text-dark">Jadwal & Booking</h1>
-            <p class="text-muted mb-0">Atur pertemuan bimbingan dengan dosen pembimbing.</p>
+            <p class="text-muted mb-0">Atur pertemuan bimbingan dengan dosen.</p>
         </div>
     </div>
 
@@ -93,7 +93,11 @@
                             <div class="text-muted small mb-3">NIDN: {{ $dosen->nidn ?? '-' }}</div>
                             
                             <div class="mb-3">
-                                <span class="badge badge-expertise me-1">Pembimbing Kamu</span>
+                                @if(Auth::user()->dosen_pembimbing_id == $dosen->id)
+                                    <span class="badge bg-primary me-1">Pembimbing Kamu</span>
+                                @else
+                                    <span class="badge bg-light text-dark border">Dosen Pengajar</span>
+                                @endif
                             </div>
 
                             <button class="btn btn-primary w-100 fw-bold rounded-pill" data-bs-toggle="modal" data-bs-target="#bookingModal" 
@@ -106,7 +110,7 @@
                 @empty
                 <div class="col-12">
                     <div class="alert alert-warning text-center">
-                        Dosen pembimbing belum ditentukan. Hubungi Admin.
+                        Belum ada data dosen.
                     </div>
                 </div>
                 @endforelse
@@ -125,7 +129,6 @@
                         <div class="list-group-item p-3 schedule-card {{ $jadwal->status }}">
                             <div class="d-flex w-100 justify-content-between align-items-center">
                                 <div class="flex-grow-1">
-                                    
                                     <div class="d-flex align-items-center mb-1">
                                         <h6 class="mb-0 fw-bold text-dark">{{ $jadwal->topik }}</h6>
                                         
@@ -169,7 +172,6 @@
                                 </div>
 
                                 <div class="text-end ms-3" style="min-width: 130px;">
-                                    
                                     @if($jadwal->status == 'Menunggu')
                                         <form action="{{ route('jadwal.destroy', $jadwal->id) }}" method="POST" onsubmit="return confirm('Batalkan pengajuan ini?')">
                                             @csrf @method('DELETE')
@@ -178,7 +180,8 @@
                                     
                                     @elseif($jadwal->status == 'Reschedule')
                                         <form action="{{ route('jadwal.approveReschedule', $jadwal->id) }}" method="POST" class="mb-1">
-                                            @csrf @method('PATCH') <button type="submit" class="btn btn-sm btn-primary w-100" onclick="return confirm('Setuju dengan waktu baru?')">
+                                            @csrf @method('PATCH') 
+                                            <button type="submit" class="btn btn-sm btn-primary w-100" onclick="return confirm('Setuju dengan waktu baru?')">
                                                 <i class="fas fa-check me-1"></i> Setuju
                                             </button>
                                         </form>
@@ -229,7 +232,7 @@
                     <input type="hidden" name="dosen_id" id="modalDosenId">
                     
                     <div class="mb-3">
-                        <label class="form-label fw-bold small text-muted">Dosen Pembimbing</label>
+                        <label class="form-label fw-bold small text-muted">Dosen Tujuan</label>
                         <input type="text" class="form-control bg-light" id="modalDosenName" value="-" readonly>
                     </div>
                     
@@ -246,7 +249,7 @@
                     
                     <div class="mb-3 mt-3">
                         <label class="form-label fw-bold small text-muted">Topik / Keperluan</label>
-                        <textarea class="form-control" name="topik" rows="2" placeholder="Contoh: Konsultasi Bab 4" required></textarea>
+                        <textarea class="form-control" name="topik" rows="2" placeholder="Contoh: Konsultasi Bab 4 / Bimbingan Lomba" required></textarea>
                     </div>
                 </div>
                 <div class="modal-footer bg-light">

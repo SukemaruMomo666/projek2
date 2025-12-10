@@ -38,29 +38,53 @@ Route::middleware(['auth'])->group(function () {
 // --- 3. RUTE GLOBAL (SUDAH LOGIN + SUDAH GANTI PASSWORD) ---
 Route::middleware(['auth', 'password.changed'])->group(function () {
 
-    // Dashboard Cerdas (Logic Redirect Berdasarkan Role)
+    // Dashboard Cerdas
     Route::get('/dashboard', function () {
         $user = Auth::user();
         
         if ($user->role === 'admin') return redirect()->route('admin.dashboard');
         if ($user->role === 'dosen') return redirect()->route('dosen.dashboard');
 
-        // Logika Khusus Dashboard Mahasiswa
-        $dosen = $user->dosenPembimbing; // Pastikan relasi ada di Model User
+        // Logika Mahasiswa
+        $dosen = $user->dosenPembimbing;
         
+        // 1. Ambil Logbook (Semua)
         $logbooks = Bimbingan::where('mahasiswa_id', $user->id)
                              ->orderBy('tanggal_bimbingan', 'desc')
                              ->get();
-        
-        // Data dummy progress (Nanti bisa diganti dengan logic real)
+
+        // 2. Ambil Revisi Terakhir (Jika ada)
+        $revisiTerakhir = $logbooks->where('status', 'Revisi')->first();
+
+        // 3. Ambil Jadwal Mendatang (Upcoming)
+        $jadwalMendatang = \App\Models\Jadwal::where('mahasiswa_id', $user->id)
+                                             ->where('tanggal_pertemuan', '>=', now()->format('Y-m-d'))
+                                             ->orderBy('tanggal_pertemuan', 'asc')
+                                             ->orderBy('waktu_mulai', 'asc')
+                                             ->with('dosen') // Pastikan eager load dosen
+                                             ->first();
+
+        // 4. Hitung Sisa Bimbingan (Khusus Junior)
+        $jumlahPerwalian = $logbooks->filter(function ($item) {
+            return str_contains($item->materi, 'Perwalian');
+        })->count();
+        $sisaPerwalian = max(0, 3 - $jumlahPerwalian);
+
+        // Data dikirim ke View
         $data = [
             'dosen' => $dosen,
             'logbooksTerkini' => $logbooks->take(3),
             'totalBimbingan' => $logbooks->count(),
             'statusTerkini' => $logbooks->first()->status ?? 'Belum Ada',
-            'progressPercent' => 0, // Placeholder
-            'currentStep' => 1,     // Placeholder
-            'jadwalSidang' => null  // Placeholder
+            'revisiTerakhir' => $revisiTerakhir,
+            'jadwalMendatang' => $jadwalMendatang,
+            'sisaPerwalian' => $sisaPerwalian,
+            'jumlahPerwalian' => $jumlahPerwalian,
+            
+            // Placeholder (Jika belum ada logic real)
+            'progressPercent' => 0, 
+            'currentStep' => 1,     
+            'jadwalSidang' => null  
         ];
 
         return view('dashboard', $data);
