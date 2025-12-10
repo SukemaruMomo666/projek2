@@ -81,7 +81,7 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
             'sisaPerwalian' => $sisaPerwalian,
             'jumlahPerwalian' => $jumlahPerwalian,
             
-            // Placeholder (Jika belum ada logic real)
+            // Placeholder
             'progressPercent' => 0, 
             'currentStep' => 1,     
             'jadwalSidang' => null  
@@ -137,9 +137,11 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         // Data Mahasiswa Bimbingan
         Route::get('/mahasiswa', [DosenController::class, 'showMahasiswaList'])->name('mahasiswa.index');
         
-        // Jadwal Dosen (Untuk mengatur reschedule, dll)
+        // Jadwal
         Route::get('/kelola-jadwal', [DosenController::class, 'showJadwalValidasi'])->name('jadwal.index');
-        Route::post('/kelola-jadwal', [DosenController::class, 'storeJadwalValidasi'])->name('jadwal.store');
+        
+        // [PERBAIKAN UTAMA] Mengubah nama route agar sesuai dengan yang dipanggil di View (dosen.kelola-jadwal)
+        Route::post('/kelola-jadwal', [DosenController::class, 'storeJadwalValidasi'])->name('kelola-jadwal');
         
         // Arsip
         Route::get('/arsip', [DosenController::class, 'showArsip'])->name('arsip.index');

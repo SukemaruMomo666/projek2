@@ -2,99 +2,69 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Bimbingan;
 use App\Models\Jadwal;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 
-class BimbinganController extends Controller
+class JadwalController extends Controller
 {
     public function index()
     {
-        $user = Auth::user();
+        $mahasiswa = Auth::user();
+        $dosens = User::where('role', 'dosen')->orderBy('name', 'asc')->get();
+        $jadwalSaya = Jadwal::where('mahasiswa_id', $mahasiswa->id)->with('dosen')->orderBy('tanggal_pertemuan', 'desc')->get();
 
-        // 1. Ambil Logbook
-        $logbooks = Bimbingan::where('mahasiswa_id', $user->id)
-                             ->orderBy('tanggal_bimbingan', 'desc')
-                             ->get();
-
-        // 2. Hitung Perwalian
-        $jumlahPerwalian = $logbooks->filter(function ($item) {
-            return str_contains($item->materi, 'Perwalian');
-        })->count();
-
-        // 3. Ambil Jadwal ACC (Untuk Dropdown)
-        $jadwalDisetujui = Jadwal::where('mahasiswa_id', $user->id)
-                                 ->where('status', 'Disetujui')
-                                 ->orderBy('tanggal_pertemuan', 'desc')
-                                 ->get();
-
-        return view('bimbingan.index', [
-            'logbooks' => $logbooks,
-            'jumlahPerwalian' => $jumlahPerwalian,
-            'jadwalDisetujui' => $jadwalDisetujui
+        // PERBAIKAN: Arahkan ke 'bimbingan.jadwal'
+        return view('bimbingan.jadwal', [ 
+            'dosens' => $dosens,
+            'jadwalSaya' => $jadwalSaya
         ]);
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'tanggal_bimbingan' => 'required|date|before_or_equal:today',
-            'tahapan'           => 'required|string',
-            'detail_materi'     => 'required|string|max:200',
-            'catatan_mahasiswa' => 'required|string',
-            'file'              => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:5120',
+            'dosen_id' => 'required|exists:users,id',
+            'tanggal_pertemuan' => 'required|date|after_or_equal:today',
+            'waktu_mulai' => 'required|string',
+            'topik' => 'required|string|max:255',
         ]);
 
         $mahasiswa = Auth::user();
-        $materiGabungan = $request->tahapan . ': ' . $request->detail_materi;
+        Jadwal::create([
+            'mahasiswa_id' => $mahasiswa->id,
+            'dosen_id' => $request->dosen_id,
+            'tanggal_pertemuan' => $request->tanggal_pertemuan,
+            'waktu_mulai' => $request->waktu_mulai,
+            'topik' => $request->topik,
+            'status' => 'Menunggu',
+        ]);
 
-        $data = [
-            'mahasiswa_id'      => $mahasiswa->id,
-            'dosen_id'          => $mahasiswa->dosen_pembimbing_id,
-            'tanggal_bimbingan' => $request->tanggal_bimbingan,
-            'materi'            => $materiGabungan,
-            'catatan_mahasiswa' => $request->catatan_mahasiswa,
-            'status'            => 'Menunggu',
-        ];
-
-        if ($request->hasFile('file')) {
-            $file = $request->file('file');
-            $filename = $mahasiswa->nim . '_' . date('Ymd_His') . '.' . $file->getClientOriginalExtension();
-            $path = $file->storeAs('bimbingan', $filename, 'public');
-            $data['file_path'] = $path;
-        }
-
-        Bimbingan::create($data);
-
-        return redirect()->route('bimbingan.index')->with('success', 'Logbook berhasil dicatat!');
+        return redirect()->route('jadwal.index')->with('success', 'Pengajuan jadwal berhasil dikirim!');
     }
-    
+
     public function destroy($id)
     {
-        $logbook = Bimbingan::where('id', $id)->where('mahasiswa_id', Auth::id())->firstOrFail();
-        
-        if($logbook->status != 'Menunggu') {
-            return back()->withErrors(['error' => 'Data validasi tidak bisa dihapus.']);
-        }
-
-        if($logbook->file_path && Storage::disk('public')->exists($logbook->file_path)) {
-            Storage::disk('public')->delete($logbook->file_path);
-        }
-
-        $logbook->delete();
-        return redirect()->route('bimbingan.index')->with('success', 'Data berhasil dihapus.');
+        $jadwal = Jadwal::where('id', $id)->where('mahasiswa_id', Auth::id())->firstOrFail();
+        if ($jadwal->status == 'Disetujui') return back()->withErrors(['error' => 'Jadwal yang sudah disetujui tidak dapat dibatalkan.']);
+        $jadwal->delete();
+        return redirect()->route('jadwal.index')->with('success', 'Pengajuan jadwal dibatalkan.');
     }
 
-    public function cetak()
+    public function approveReschedule($id)
     {
-        $logbooks = Bimbingan::where('mahasiswa_id', Auth::id())
-                             ->orderBy('tanggal_bimbingan', 'asc')
-                             ->get();
-                             
-        $mahasiswa = Auth::user();
-
-        return view('bimbingan.cetak', compact('logbooks', 'mahasiswa'));
+        $jadwal = Jadwal::where('id', $id)->where('mahasiswa_id', Auth::id())->firstOrFail();
+        if ($jadwal->status == 'Reschedule' && $jadwal->waktu_reschedule) {
+            $waktuBaru = Carbon::parse($jadwal->waktu_reschedule);
+            $jadwal->tanggal_pertemuan = $waktuBaru->format('Y-m-d');
+            $jadwal->waktu_mulai = $waktuBaru->format('H:i');
+            $jadwal->status = 'Disetujui';
+            $jadwal->waktu_reschedule = null;
+            $jadwal->save();
+            return redirect()->route('jadwal.index')->with('success', 'Jadwal reschedule berhasil disetujui!');
+        }
+        return back()->withErrors(['error' => 'Gagal memproses persetujuan.']);
     }
 }
