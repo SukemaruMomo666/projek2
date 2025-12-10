@@ -46,15 +46,25 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         if ($user->role === 'dosen') return redirect()->route('dosen.dashboard');
 
         // Logika Khusus Dashboard Mahasiswa
-        $dosen = $user->dosenPembimbing;
-        $logbooks = Bimbingan::where('mahasiswa_id', $user->id)->orderBy('tanggal_bimbingan', 'desc')->get();
+        $dosen = $user->dosenPembimbing; // Pastikan relasi ada di Model User
         
-        return view('dashboard', [
+        $logbooks = Bimbingan::where('mahasiswa_id', $user->id)
+                             ->orderBy('tanggal_bimbingan', 'desc')
+                             ->get();
+        
+        // Data dummy progress (Nanti bisa diganti dengan logic real)
+        $data = [
             'dosen' => $dosen,
             'logbooksTerkini' => $logbooks->take(3),
             'totalBimbingan' => $logbooks->count(),
             'statusTerkini' => $logbooks->first()->status ?? 'Belum Ada',
-        ]);
+            'progressPercent' => 0, // Placeholder
+            'currentStep' => 1,     // Placeholder
+            'jadwalSidang' => null  // Placeholder
+        ];
+
+        return view('dashboard', $data);
+
     })->name('dashboard');
 
     // Profil User
@@ -66,12 +76,26 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     // GRUP RUTE MAHASISWA
     // ====================================================
     Route::middleware('role:mahasiswa')->group(function () {
+        
+        // --- 1. Logbook Bimbingan ---
         Route::get('/bimbingan', [BimbinganController::class, 'index'])->name('bimbingan.index');
         Route::post('/bimbingan', [BimbinganController::class, 'store'])->name('bimbingan.store');
+        Route::delete('/bimbingan/{bimbingan}', [BimbinganController::class, 'destroy'])->name('bimbingan.destroy');
+        Route::get('/bimbingan/cetak', [BimbinganController::class, 'cetak'])->name('bimbingan.cetak');
+
+        // --- 2. Upload Dokumen Skripsi ---
         Route::get('/bimbingan/upload', [DokumenController::class, 'index'])->name('bimbingan.upload');
         Route::post('/bimbingan/upload', [DokumenController::class, 'store'])->name('bimbingan.upload.store');
+
+        // --- 3. Jadwal & Booking ---
         Route::get('/jadwal', [JadwalController::class, 'index'])->name('jadwal.index');
         Route::post('/jadwal', [JadwalController::class, 'store'])->name('jadwal.store');
+        
+        // [BARU] Route untuk menyetujui Reschedule dari Dosen
+        Route::patch('/jadwal/{id}/approve-reschedule', [JadwalController::class, 'approveReschedule'])->name('jadwal.approveReschedule');
+        
+        // [BARU] Route untuk membatalkan/menolak jadwal
+        Route::delete('/jadwal/{id}', [JadwalController::class, 'destroy'])->name('jadwal.destroy');
     });
 
     // ====================================================
@@ -89,7 +113,7 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         // Data Mahasiswa Bimbingan
         Route::get('/mahasiswa', [DosenController::class, 'showMahasiswaList'])->name('mahasiswa.index');
         
-        // Jadwal
+        // Jadwal Dosen (Untuk mengatur reschedule, dll)
         Route::get('/kelola-jadwal', [DosenController::class, 'showJadwalValidasi'])->name('jadwal.index');
         Route::post('/kelola-jadwal', [DosenController::class, 'storeJadwalValidasi'])->name('jadwal.store');
         
@@ -111,15 +135,12 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         Route::delete('/dosen/{dosen}', [AdminController::class, 'destroyDosen'])->name('dosen.destroy');
 
         // --- Manajemen Mahasiswa ---
-        // 1. Batch Tools (Generate Kelas & Plotting Masal) -> WAJIB ADA DISINI
         Route::post('/mahasiswa/generate-kelas', [AdminController::class, 'generateKelas'])->name('mahasiswa.generate-kelas');
         Route::post('/mahasiswa/bulk-plotting', [AdminController::class, 'bulkPlotting'])->name('mahasiswa.bulk-plotting');
 
-        // 2. Import & Template
         Route::post('/mahasiswa/import', [AdminController::class, 'importMahasiswa'])->name('mahasiswa.import');
         Route::get('/mahasiswa/template', [AdminController::class, 'downloadTemplate'])->name('mahasiswa.template');
 
-        // 3. CRUD Mahasiswa Standar
         Route::get('/mahasiswa', [AdminController::class, 'indexMahasiswa'])->name('mahasiswa.index');
         Route::get('/mahasiswa/create', [AdminController::class, 'createMahasiswa'])->name('mahasiswa.create');
         Route::post('/mahasiswa', [AdminController::class, 'storeMahasiswa'])->name('mahasiswa.store');

@@ -4,29 +4,32 @@
 
 @push('styles')
 <style>
-    /* ... (CSS Anda dari file sebelumnya tetap di sini) ... */
     .nav-tabs .nav-link { border: none; color: #6c757d; font-weight: 600; padding: 1rem 1.5rem; border-bottom: 3px solid transparent; }
     .nav-tabs .nav-link.active { color: #0d6efd; border-bottom: 3px solid #0d6efd; background: none; }
     .nav-tabs .nav-link:hover { border-color: transparent; color: #0d6efd; }
+    
     .lecturer-card { transition: transform 0.2s, box-shadow 0.2s; border: 1px solid #e2e8f0; }
     .lecturer-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.05); border-color: #cbd5e1; }
     .lecturer-avatar { width: 80px; height: 80px; object-fit: cover; border: 3px solid #f1f5f9; }
     .badge-expertise { background-color: #e0f2fe; color: #0284c7; font-size: 0.7rem; font-weight: 600; }
-    .time-slot { cursor: pointer; border: 1px solid #dee2e6; border-radius: 6px; padding: 5px 10px; text-align: center; font-size: 0.85rem; transition: all 0.2s; background-color: #fff; }
-    .time-slot:hover { border-color: #0d6efd; color: #0d6efd; background-color: #f8f9fa; }
-    .time-slot.selected { background-color: #0d6efd; color: white; border-color: #0d6efd; }
-    .time-slot.disabled { background-color: #f8f9fa; color: #adb5bd; cursor: not-allowed; border-color: #f1f5f9; }
-    .schedule-card { border-left: 4px solid #0d6efd; }
-    .schedule-card.Menunggu { border-left-color: #ffc107; }
-    .schedule-card.Disetujui { border-left-color: #198754; }
-    .schedule-card.Ditolak { border-left-color: #dc3545; }
+    
+    /* Styling Kartu Jadwal yang Lebih Canggih */
+    .schedule-card { border-left: 5px solid #ccc; transition: all 0.2s; }
+    .schedule-card:hover { background-color: #f8f9fa; }
+    
+    .schedule-card.Menunggu { border-left-color: #ffc107; }   /* Kuning */
+    .schedule-card.Disetujui { border-left-color: #198754; }  /* Hijau */
+    .schedule-card.Ditolak { border-left-color: #dc3545; }    /* Merah */
+    .schedule-card.Reschedule { border-left-color: #0dcaf0; } /* Biru Muda (Reschedule) */
+
+    .blink-badge { animation: blinker 1.5s linear infinite; }
+    @keyframes blinker { 50% { opacity: 0.5; } }
 </style>
 @endpush
 
 @section('content')
 <div class="container-fluid px-4 pb-5">
     
-    <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mt-4 mb-4">
         <div>
             <h1 class="h2 fw-bold mb-0 text-dark">Jadwal & Booking</h1>
@@ -34,38 +37,31 @@
         </div>
     </div>
 
-    <!-- 1. ALERT SUKSES & ERROR -->
     @if (session('success'))
         <div class="alert alert-success alert-dismissible fade show shadow-sm border-0" role="alert">
-            <i class="fas fa-check-circle me-2"></i>
-            <strong>Berhasil!</strong> {{ session('success') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <i class="fas fa-check-circle me-2"></i> {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     @endif
     @if ($errors->any())
         <div class="alert alert-danger alert-dismissible fade show shadow-sm border-0" role="alert">
-            <i class="fas fa-exclamation-triangle me-2"></i>
-            <strong>Gagal mengirim!</strong> Harap periksa error berikut:
-            <ul>
-                @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <i class="fas fa-exclamation-triangle me-2"></i> Gagal! Periksa inputan Anda.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     @endif
 
-    <!-- Navigasi Tab -->
     <ul class="nav nav-tabs mb-4" id="scheduleTab" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="lecturer-tab" data-bs-toggle="tab" data-bs-target="#lecturer" type="button" role="tab"><i class="fas fa-search me-2"></i>Cari Jadwal Dosen</button>
+        <li class="nav-item">
+            <button class="nav-link active" id="lecturer-tab" data-bs-toggle="tab" data-bs-target="#lecturer" type="button">
+                <i class="fas fa-search me-2"></i>Cari Jadwal Dosen
+            </button>
         </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="myschedule-tab" data-bs-toggle="tab" data-bs-target="#myschedule" type="button" role="tab">
+        <li class="nav-item">
+            <button class="nav-link" id="myschedule-tab" data-bs-toggle="tab" data-bs-target="#myschedule" type="button">
                 <i class="fas fa-calendar-check me-2"></i>Jadwal Saya 
-                <!-- 2. PERBAIKAN: Badge Dinamis (Hitung yang 'Menunggu') -->
-                @if($jadwalSaya->where('status', 'Menunggu')->count() > 0)
-                    <span class="badge bg-danger rounded-pill ms-1">{{ $jadwalSaya->where('status', 'Menunggu')->count() }}</span>
+                @php $notifCount = $jadwalSaya->whereIn('status', ['Menunggu', 'Reschedule'])->count(); @endphp
+                @if($notifCount > 0)
+                    <span class="badge bg-danger rounded-pill ms-1">{{ $notifCount }}</span>
                 @endif
             </button>
         </li>
@@ -73,31 +69,21 @@
 
     <div class="tab-content" id="scheduleTabContent">
         
-        <!-- TAB 1: CARI JADWAL DOSEN (DINAMIS) -->
         <div class="tab-pane fade show active" id="lecturer" role="tabpanel">
-            
-            <!-- Search Filter (Masih statis, bisa dikembangkan nanti) -->
             <div class="card border-0 shadow-sm mb-4 bg-light">
                 <div class="card-body">
                     <div class="row g-3">
-                        <div class="col-md-8">
+                        <div class="col-md-12">
                             <div class="input-group">
                                 <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
                                 <input type="text" class="form-control border-start-0 ps-0" placeholder="Cari nama dosen...">
                             </div>
-                        </div>
-                        <div class="col-md-4">
-                            <select class="form-select">
-                                <option selected>Semua Hari</option>
-                                <option value="1">Senin</option>
-                            </select>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class="row g-4">
-                <!-- 3. PERBAIKAN: Looping Kartu Dosen dari Controller -->
                 @forelse ($dosens as $dosen)
                 <div class="col-xl-4 col-md-6">
                     <div class="card lecturer-card h-100 border-0 shadow-sm rounded-3">
@@ -107,37 +93,26 @@
                             <div class="text-muted small mb-3">NIDN: {{ $dosen->nidn ?? '-' }}</div>
                             
                             <div class="mb-3">
-                                <span class="badge badge-expertise me-1">Rekayasa Perangkat Lunak</span>
-                                <span class="badge badge-expertise">AI</span>
+                                <span class="badge badge-expertise me-1">Pembimbing Kamu</span>
                             </div>
 
-                            <div class="alert alert-light border small text-start mb-3">
-                                <i class="fas fa-info-circle text-info me-1"></i> <strong>Status:</strong> 
-                                <span class="text-success fw-bold">Tersedia Hari Ini</span>
-                            </div>
-
-                            <!-- 4. PERBAIKAN: Kirim ID & Nama Dosen ke Modal -->
                             <button class="btn btn-primary w-100 fw-bold rounded-pill" data-bs-toggle="modal" data-bs-target="#bookingModal" 
                                     onclick="setDosen('{{ $dosen->id }}', '{{ $dosen->name }}')">
                                 <i class="fas fa-calendar-plus me-1"></i> Ajukan Pertemuan
                             </button>
-                        </div>
-                        <div class="card-footer bg-white border-top-0 text-center pb-3">
-                            <small class="text-muted">Jadwal Terdekat: <strong>Senin, 09:00 WIB</strong></small>
                         </div>
                     </div>
                 </div>
                 @empty
                 <div class="col-12">
                     <div class="alert alert-warning text-center">
-                        Dosen pembimbing Anda belum diatur. Harap hubungi admin.
+                        Dosen pembimbing belum ditentukan. Hubungi Admin.
                     </div>
                 </div>
                 @endforelse
             </div>
         </div>
 
-        <!-- TAB 2: JADWAL SAYA (DINAMIS) -->
         <div class="tab-pane fade" id="myschedule" role="tabpanel">
             <div class="card border-0 shadow-sm rounded-3">
                 <div class="card-header bg-white py-3">
@@ -146,50 +121,91 @@
                 <div class="card-body p-0">
                     <div class="list-group list-group-flush">
                         
-                        <!-- 5. PERBAIKAN: Looping Jadwal Saya dari Controller -->
                         @forelse ($jadwalSaya as $jadwal)
                         <div class="list-group-item p-3 schedule-card {{ $jadwal->status }}">
                             <div class="d-flex w-100 justify-content-between align-items-center">
-                                <div>
+                                <div class="flex-grow-1">
+                                    
                                     <div class="d-flex align-items-center mb-1">
                                         <h6 class="mb-0 fw-bold text-dark">{{ $jadwal->topik }}</h6>
-                                        <!-- Status Badge Dinamis -->
+                                        
                                         @if($jadwal->status == 'Menunggu')
-                                            <span class="badge bg-warning text-dark ms-2" style="font-size: 0.7em;">MENUNGGU KONFIRMASI</span>
+                                            <span class="badge bg-warning text-dark ms-2">MENUNGGU KONFIRMASI</span>
                                         @elseif($jadwal->status == 'Disetujui')
-                                            <span class="badge bg-success ms-2" style="font-size: 0.7em;">DISETUJUI</span>
+                                            <span class="badge bg-success ms-2">DISETUJUI</span>
                                         @elseif($jadwal->status == 'Ditolak')
-                                            <span class="badge bg-danger ms-2" style="font-size: 0.7em;">DITOLAK</span>
+                                            <span class="badge bg-danger ms-2">DITOLAK</span>
+                                        @elseif($jadwal->status == 'Reschedule')
+                                            <span class="badge bg-info text-dark ms-2 blink-badge">TAWARAN JADWAL BARU</span>
                                         @endif
                                     </div>
-                                    <small class="text-muted">
-                                        <i class="fas fa-user me-1"></i> {{ $jadwal->dosen->name ?? 'Dosen' }} &bull; 
-                                        <i class="fas fa-calendar me-1 ms-2"></i> {{ $jadwal->tanggal_pertemuan->format('l, d M Y') }} &bull; 
-                                        <i class="fas fa-clock me-1 ms-2"></i> {{ $jadwal->waktu_mulai }} WIB
-                                    </small>
+
+                                    <div class="text-muted small mt-1">
+                                        <i class="fas fa-user me-1"></i> {{ $jadwal->dosen->name }} 
+                                        
+                                        @if($jadwal->status == 'Reschedule' && $jadwal->waktu_reschedule)
+                                            <div class="mt-1 p-2 bg-info bg-opacity-10 rounded text-dark border border-info">
+                                                <div class="fw-bold mb-1">Dosen menawarkan waktu pengganti:</div>
+                                                <span class="text-decoration-line-through text-muted me-2">
+                                                    {{ $jadwal->tanggal_pertemuan->format('d M Y') }} ({{ $jadwal->waktu_mulai }})
+                                                </span>
+                                                <i class="fas fa-arrow-right mx-1"></i>
+                                                <span class="text-primary fw-bold">
+                                                    {{ \Carbon\Carbon::parse($jadwal->waktu_reschedule)->format('d M Y') }} 
+                                                    ({{ \Carbon\Carbon::parse($jadwal->waktu_reschedule)->format('H:i') }})
+                                                </span>
+                                            </div>
+                                        @else
+                                            &bull; <i class="fas fa-calendar me-1 ms-2"></i> {{ $jadwal->tanggal_pertemuan->format('l, d M Y') }}
+                                            &bull; <i class="fas fa-clock me-1 ms-2"></i> {{ $jadwal->waktu_mulai }} WIB
+                                        @endif
+                                    </div>
                                     
-                                    <!-- Catatan Dosen jika Ditolak -->
-                                    @if($jadwal->status == 'Ditolak' && $jadwal->catatan_dosen)
-                                    <div class="mt-2 small text-danger bg-danger bg-opacity-10 p-2 rounded">
-                                        <i class="fas fa-times-circle me-1"></i> <strong>Alasan Ditolak:</strong> "{{ $jadwal->catatan_dosen }}"
+                                    @if($jadwal->catatan_dosen)
+                                    <div class="mt-2 small fst-italic text-muted">
+                                        <i class="fas fa-comment-alt me-1"></i> Pesan Dosen: "{{ $jadwal->catatan_dosen }}"
                                     </div>
                                     @endif
                                 </div>
-                                <div class="text-end">
-                                    <!-- Hanya bisa batal jika masih Menunggu -->
+
+                                <div class="text-end ms-3" style="min-width: 130px;">
+                                    
                                     @if($jadwal->status == 'Menunggu')
-                                    <button class="btn btn-sm btn-outline-danger" title="Batalkan"><i class="fas fa-times"></i></button>
+                                        <form action="{{ route('jadwal.destroy', $jadwal->id) }}" method="POST" onsubmit="return confirm('Batalkan pengajuan ini?')">
+                                            @csrf @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-outline-danger w-100"><i class="fas fa-times me-1"></i> Batal</button>
+                                        </form>
+                                    
+                                    @elseif($jadwal->status == 'Reschedule')
+                                        <form action="{{ route('jadwal.approveReschedule', $jadwal->id) }}" method="POST" class="mb-1">
+                                            @csrf @method('PATCH') <button type="submit" class="btn btn-sm btn-primary w-100" onclick="return confirm('Setuju dengan waktu baru?')">
+                                                <i class="fas fa-check me-1"></i> Setuju
+                                            </button>
+                                        </form>
+                                        
+                                        <form action="{{ route('jadwal.destroy', $jadwal->id) }}" method="POST" onsubmit="return confirm('Tolak tawaran ini? Jadwal akan dihapus.')">
+                                            @csrf @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary w-100">
+                                                <i class="fas fa-times me-1"></i> Tolak
+                                            </button>
+                                        </form>
+
+                                    @elseif($jadwal->status == 'Disetujui')
+                                        <button class="btn btn-sm btn-success w-100 disabled" style="opacity: 1">
+                                            <i class="fas fa-check-circle me-1"></i> Fix
+                                        </button>
+                                    
                                     @else
-                                    <button class="btn btn-sm btn-light text-muted disabled"><i class="fas fa-check"></i></button>
+                                        <button class="btn btn-sm btn-secondary w-100 disabled">Selesai</button>
                                     @endif
                                 </div>
                             </div>
                         </div>
                         @empty
                         <div class="text-center p-5">
-                            <img src="https://placehold.co/100x100/EBF8FF/3B82F6?text=📅" class="mb-3" style="width: 80px; border-radius: 50%;">
-                            <h5 class="text-muted">Belum Ada Pengajuan Jadwal</h5>
-                            <p class="text-muted small">Anda dapat mengajukan jadwal pertemuan pada tab "Cari Jadwal Dosen".</p>
+                            <img src="https://placehold.co/100x100/EBF8FF/3B82F6?text=📅" class="mb-3 rounded-circle">
+                            <h5 class="text-muted">Belum Ada Jadwal</h5>
+                            <p class="text-muted small">Ajukan pertemuan di tab pencarian.</p>
                         </div>
                         @endforelse
 
@@ -200,7 +216,6 @@
     </div>
 </div>
 
-<!-- MODAL BOOKING (DINAMIS) -->
 <div class="modal fade" id="bookingModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
@@ -208,12 +223,9 @@
                 <h5 class="modal-title fw-bold"><i class="fas fa-calendar-check me-2"></i>Booking Jadwal</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <!-- 6. PERBAIKAN: Arahkan Form ke Route 'jadwal.store' -->
             <form action="{{ route('jadwal.store') }}" method="POST">
                 @csrf
                 <div class="modal-body p-4">
-                    
-                    <!-- 7. PERBAIKAN: Input Tersembunyi untuk ID Dosen -->
                     <input type="hidden" name="dosen_id" id="modalDosenId">
                     
                     <div class="mb-3">
@@ -224,21 +236,18 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label fw-bold small text-muted">Pilih Tanggal</label>
-                            <input type="date" class="form-control" name="tanggal_pertemuan" value="{{ old('tanggal_pertemuan') }}" required>
+                            <input type="date" class="form-control" name="tanggal_pertemuan" value="{{ date('Y-m-d', strtotime('+1 day')) }}" min="{{ date('Y-m-d') }}" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold small text-muted">Pilih Jam</label>
-                            <input type="time" class="form-control" name="waktu_mulai" value="{{ old('waktu_mulai') }}" required>
+                            <input type="time" class="form-control" name="waktu_mulai" required>
                         </div>
                     </div>
                     
                     <div class="mb-3 mt-3">
                         <label class="form-label fw-bold small text-muted">Topik / Keperluan</label>
-                        <textarea class="form-control" name="topik" rows="2" placeholder="Contoh: Konsultasi Bab 4" required>{{ old('topik') }}</textarea>
+                        <textarea class="form-control" name="topik" rows="2" placeholder="Contoh: Konsultasi Bab 4" required></textarea>
                     </div>
-
-                    <!-- Input Slot Waktu (Dihapus karena diganti Input Jam Manual) -->
-                    
                 </div>
                 <div class="modal-footer bg-light">
                     <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Batal</button>
@@ -249,20 +258,10 @@
     </div>
 </div>
 
-<!-- 8. PERBAIKAN: Update Script -->
 <script>
-    // Fungsi ini sekarang menerima ID dan NAMA
     function setDosen(id, name) {
         document.getElementById('modalDosenId').value = id;
         document.getElementById('modalDosenName').value = name;
-    }
-
-    // Fungsi ini tidak kita pakai lagi, tapi kita biarkan jika nanti diperlukan
-    function selectSlot(element) {
-        if (element.classList.contains('disabled')) return;
-        document.querySelectorAll('.time-slot').forEach(el => el.classList.remove('selected'));
-        element.classList.add('selected');
-        document.getElementById('selected_slot').value = element.innerText;
     }
 </script>
 @endsection
