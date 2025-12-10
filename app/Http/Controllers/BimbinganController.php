@@ -7,6 +7,7 @@ use App\Models\Jadwal;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str; // Tambahan untuk Str::before
 
 class BimbinganController extends Controller
 {
@@ -60,8 +61,15 @@ class BimbinganController extends Controller
     public function destroy($id)
     {
         $logbook = Bimbingan::where('id', $id)->where('mahasiswa_id', Auth::id())->firstOrFail();
-        if($logbook->status != 'Menunggu') return back()->withErrors(['error' => 'Data validasi tidak bisa dihapus.']);
-        if($logbook->file_path && Storage::disk('public')->exists($logbook->file_path)) Storage::disk('public')->delete($logbook->file_path);
+        
+        if($logbook->status != 'Menunggu') {
+            return back()->withErrors(['error' => 'Data validasi tidak bisa dihapus.']);
+        }
+
+        if($logbook->file_path && Storage::disk('public')->exists($logbook->file_path)) {
+            Storage::disk('public')->delete($logbook->file_path);
+        }
+
         $logbook->delete();
         return redirect()->route('bimbingan.index')->with('success', 'Data berhasil dihapus.');
     }
@@ -71,5 +79,49 @@ class BimbinganController extends Controller
         $logbooks = Bimbingan::where('mahasiswa_id', Auth::id())->orderBy('tanggal_bimbingan', 'asc')->get();
         $mahasiswa = Auth::user();
         return view('bimbingan.cetak', compact('logbooks', 'mahasiswa'));
+    }
+
+    /**
+     * Memproses Update/Revisi Logbook
+     */
+    public function update(Request $request, $id)
+    {
+        $logbook = Bimbingan::where('id', $id)->where('mahasiswa_id', Auth::id())->firstOrFail();
+
+        // Validasi input
+        $request->validate([
+            'tanggal_bimbingan' => 'required|date|before_or_equal:today',
+            'detail_materi'     => 'required|string|max:200',
+            'catatan_mahasiswa' => 'required|string',
+            'file'              => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:5120',
+        ]);
+
+        // Update data
+        // Kita ambil tahapan lama (sebelum tanda titik dua) agar konsisten
+        // Menggunakan Str::before yang aman karena sudah di-import di atas
+        $tahapanLama = Str::before($logbook->materi, ':'); 
+        $logbook->materi = $tahapanLama . ': ' . $request->detail_materi;
+        
+        $logbook->tanggal_bimbingan = $request->tanggal_bimbingan;
+        $logbook->catatan_mahasiswa = $request->catatan_mahasiswa;
+        
+        // Kembalikan status ke Menunggu agar dosen cek ulang
+        $logbook->status = 'Menunggu'; 
+
+        // Cek jika ada file baru
+        if ($request->hasFile('file')) {
+            // Hapus file lama
+            if ($logbook->file_path && Storage::disk('public')->exists($logbook->file_path)) {
+                Storage::disk('public')->delete($logbook->file_path);
+            }
+            // Upload file baru
+            $file = $request->file('file');
+            $filename = Auth::user()->nim . '_' . date('Ymd_His') . '_REVISI.' . $file->getClientOriginalExtension();
+            $logbook->file_path = $file->storeAs('bimbingan', $filename, 'public');
+        }
+
+        $logbook->save();
+
+        return redirect()->route('bimbingan.index')->with('success', 'Revisi berhasil dikirim! Menunggu pengecekan dosen.');
     }
 }

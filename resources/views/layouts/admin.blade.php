@@ -57,15 +57,10 @@
                                 $prodi = strtolower($user->prodi ?? '');
                                 $semester = $user->semester ?? 0;
                                 
-                                // Default: Belum boleh skripsi
                                 $bisaSkripsi = false; 
-
-                                // ATURAN 1: Sistem Informasi (Mulai Semester 5)
                                 if (str_contains($prodi, 'sistem informasi') && $semester >= 5) {
                                     $bisaSkripsi = true;
-                                }
-                                // ATURAN 2: Rekayasa Perangkat Lunak / TRPL (Mulai Semester 7)
-                                elseif (str_contains($prodi, 'rekayasa perangkat lunak') && $semester >= 7) {
+                                } elseif (str_contains($prodi, 'rekayasa perangkat lunak') && $semester >= 7) {
                                     $bisaSkripsi = true;
                                 }
                             @endphp
@@ -81,7 +76,6 @@
 
                                 <div class="sb-sidenav-menu-heading">Akademik & Bimbingan</div>
                                 
-                                {{-- LOGBOOK & JADWAL: BISA DIAKSES SEMUA MAHASISWA --}}
                                 <a class="nav-link {{ request()->routeIs('bimbingan.index') ? 'active' : '' }}" href="{{ route('bimbingan.index') }}">
                                     <div class="sb-nav-link-icon"><i class="fas fa-book-reader"></i></div>
                                     Logbook Bimbingan
@@ -92,7 +86,6 @@
                                     Bimbingan & Dosen
                                 </a>
 
-                                {{-- DOKUMEN SKRIPSI: HANYA MAHASISWA TINGKAT AKHIR --}}
                                 @if($bisaSkripsi)
                                     <a class="nav-link {{ request()->routeIs('bimbingan.upload') ? 'active' : '' }}" href="{{ route('bimbingan.upload') }}">
                                         <div class="sb-nav-link-icon"><i class="fas fa-file-upload"></i></div>
@@ -100,7 +93,7 @@
                                     </a>
                                 @endif
 
-                            {{-- === 2. MENU DOSEN === --}}
+                            {{-- === 2. MENU DOSEN (STRUKTUR BARU) === --}}
                             @elseif(Auth::user()->role == 'dosen')
                                 
                                 <div class="sb-sidenav-menu-heading">Utama</div>
@@ -109,38 +102,45 @@
                                     Dashboard Dosen
                                 </a>
                                 
-                                <div class="sb-sidenav-menu-heading">Manajemen Bimbingan</div>
-                                
-                                <a class="nav-link {{ request()->routeIs('dosen.mahasiswa.index') ? 'active' : '' }}" href="{{ route('dosen.mahasiswa.index') }}">
-                                    <div class="sb-nav-link-icon"><i class="fas fa-users"></i></div>
-                                    Data Mahasiswa
-                                </a>
-                                
-                                <a class="nav-link collapsed {{ (request()->routeIs('dosen.validasi.logbook.index') || request()->routeIs('dosen.validasi.dokumen.index')) ? 'active' : '' }}" 
-                                   href="#" data-bs-toggle="collapse" data-bs-target="#collapseValidasi" aria-expanded="false" aria-controls="collapseValidasi">
-                                    <div class="sb-nav-link-icon"><i class="fas fa-user-check"></i></div>
-                                    Ruang Validasi
+                                {{-- A. BIMBINGAN UMUM / AKADEMIK --}}
+                                <div class="sb-sidenav-menu-heading">Bimbingan Akademik</div>
+                                <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseUmum" aria-expanded="false" aria-controls="collapseUmum">
+                                    <div class="sb-nav-link-icon"><i class="fas fa-user-friends"></i></div>
+                                    Mahasiswa Wali
                                     <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
                                 </a>
-                                <div class="collapse {{ (request()->routeIs('dosen.validasi.logbook.index') || request()->routeIs('dosen.validasi.dokumen.index')) ? 'show' : '' }}" id="collapseValidasi" data-bs-parent="#sidenavAccordion">
+                                <div class="collapse" id="collapseUmum" data-bs-parent="#sidenavAccordion">
+                                    <nav class="sb-sidenav-menu-nested nav">
+                                        <a class="nav-link" href="{{ route('dosen.mahasiswa.index') }}">Data Mahasiswa</a>
+                                        </nav>
+                                </div>
+
+                                {{-- B. PROYEK AKHIR / SKRIPSI --}}
+                                <div class="sb-sidenav-menu-heading">Tugas Akhir / Skripsi</div>
+                                <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseSkripsi" aria-expanded="false" aria-controls="collapseSkripsi">
+                                    <div class="sb-nav-link-icon"><i class="fas fa-graduation-cap"></i></div>
+                                    Bimbingan Skripsi
+                                    <div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
+                                </a>
+                                <div class="collapse {{ (request()->routeIs('dosen.validasi.*') || request()->routeIs('dosen.arsip.*')) ? 'show' : '' }}" id="collapseSkripsi" data-bs-parent="#sidenavAccordion">
                                     <nav class="sb-sidenav-menu-nested nav">
                                         <a class="nav-link {{ request()->routeIs('dosen.validasi.logbook.index') ? 'active' : '' }}" href="{{ route('dosen.validasi.logbook.index') }}">
-                                            <i class="fas fa-book-open me-2"></i> Validasi Logbook
+                                            Validasi Logbook
                                         </a>
                                         <a class="nav-link {{ request()->routeIs('dosen.validasi.dokumen.index') ? 'active' : '' }}" href="{{ route('dosen.validasi.dokumen.index') }}">
-                                            <i class="fas fa-file-upload me-2"></i> Validasi Dokumen
+                                            Review Dokumen (Bab)
+                                        </a>
+                                        <a class="nav-link {{ request()->routeIs('dosen.arsip.index') ? 'active' : '' }}" href="{{ route('dosen.arsip.index') }}">
+                                            Arsip & Riwayat
                                         </a>
                                     </nav>
                                 </div>
 
+                                {{-- C. JADWAL PERTEMUAN --}}
+                                <div class="sb-sidenav-menu-heading">Agenda</div>
                                 <a class="nav-link {{ request()->routeIs('dosen.jadwal.index') ? 'active' : '' }}" href="{{ route('dosen.jadwal.index') }}">
                                     <div class="sb-nav-link-icon"><i class="fas fa-calendar-check"></i></div>
-                                    Kelola Jadwal
-                                </a>
-                                
-                                <a class="nav-link {{ request()->routeIs('dosen.arsip.index') ? 'active' : '' }}" href="{{ route('dosen.arsip.index') }}">
-                                    <div class="sb-nav-link-icon"><i class="fas fa-archive"></i></div>
-                                    Arsip Skripsi
+                                    Kelola Jadwal Temu
                                 </a>
 
                             {{-- === 3. MENU ADMIN === --}}

@@ -22,23 +22,23 @@ use App\Models\Bimbingan;
 |--------------------------------------------------------------------------
 */
 
-// --- 1. RUTE PUBLIK & OTENTIKASI (HANYA UNTUK TAMU) ---
+// --- 1. RUTE PUBLIK & OTENTIKASI ---
 Route::middleware('guest')->group(function () {
     Route::get('/', function () { return view('auth.login'); });
     Route::get('/auth/microsoft/redirect', [SocialiteController::class, 'microsoftRedirect'])->name('login.microsoft.redirect');
     Route::get('/auth/microsoft/callback', [SocialiteController::class, 'microsoftCallback'])->name('login.microsoft.callback');
 });
 
-// --- 2. RUTE AKTIVASI AKUN (Wajib Login tapi Belum Ganti Password) ---
+// --- 2. RUTE AKTIVASI AKUN ---
 Route::middleware(['auth'])->group(function () {
     Route::get('/aktivasi-akun', [VerificationController::class, 'show'])->name('first-login.show');
     Route::put('/aktivasi-akun', [VerificationController::class, 'update'])->name('first-login.update');
 });
 
-// --- 3. RUTE GLOBAL (SUDAH LOGIN + SUDAH GANTI PASSWORD) ---
+// --- 3. RUTE GLOBAL (DASHBOARD) ---
 Route::middleware(['auth', 'password.changed'])->group(function () {
 
-    // Dashboard Cerdas
+// Dashboard Cerdas
     Route::get('/dashboard', function () {
         $user = Auth::user();
         
@@ -48,31 +48,25 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         // Logika Mahasiswa
         $dosen = $user->dosenPembimbing;
         
-        // 1. Ambil Logbook (Semua)
-        $logbooks = Bimbingan::where('mahasiswa_id', $user->id)
+        // Ambil Data Bimbingan
+        $logbooks = \App\Models\Bimbingan::where('mahasiswa_id', $user->id)
                              ->orderBy('tanggal_bimbingan', 'desc')
                              ->get();
 
-        // 2. Ambil Revisi Terakhir (Jika ada)
         $revisiTerakhir = $logbooks->where('status', 'Revisi')->first();
-
-        // 3. Ambil Jadwal Mendatang (Upcoming)
+        
         $jadwalMendatang = \App\Models\Jadwal::where('mahasiswa_id', $user->id)
                                              ->where('tanggal_pertemuan', '>=', now()->format('Y-m-d'))
                                              ->orderBy('tanggal_pertemuan', 'asc')
-                                             ->orderBy('waktu_mulai', 'asc')
-                                             ->with('dosen') // Pastikan eager load dosen
+                                             ->with('dosen')
                                              ->first();
 
-        // 4. Hitung Sisa Bimbingan (Khusus Junior)
-        $jumlahPerwalian = $logbooks->filter(function ($item) {
-            return str_contains($item->materi, 'Perwalian');
-        })->count();
+        $jumlahPerwalian = $logbooks->filter(fn($i) => str_contains($i->materi, 'Perwalian'))->count();
         $sisaPerwalian = max(0, 3 - $jumlahPerwalian);
 
-        // Data dikirim ke View
-        $data = [
+        return view('dashboard', [
             'dosen' => $dosen,
+            'logbooks' => $logbooks, // <--- INI PERBAIKANNYA (Data ini yang sebelumnya hilang)
             'logbooksTerkini' => $logbooks->take(3),
             'totalBimbingan' => $logbooks->count(),
             'statusTerkini' => $logbooks->first()->status ?? 'Belum Ada',
@@ -80,15 +74,10 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
             'jadwalMendatang' => $jadwalMendatang,
             'sisaPerwalian' => $sisaPerwalian,
             'jumlahPerwalian' => $jumlahPerwalian,
-            
-            // Placeholder
             'progressPercent' => 0, 
             'currentStep' => 1,     
             'jadwalSidang' => null  
-        ];
-
-        return view('dashboard', $data);
-
+        ]);
     })->name('dashboard');
 
     // Profil User
@@ -104,6 +93,10 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         // --- 1. Logbook Bimbingan ---
         Route::get('/bimbingan', [BimbinganController::class, 'index'])->name('bimbingan.index');
         Route::post('/bimbingan', [BimbinganController::class, 'store'])->name('bimbingan.store');
+        
+        // Route UPDATE (Revisi) - Ini yang ditambahkan agar tombol "Perbaiki" jalan
+        Route::put('/bimbingan/{id}', [BimbinganController::class, 'update'])->name('bimbingan.update');
+        
         Route::delete('/bimbingan/{bimbingan}', [BimbinganController::class, 'destroy'])->name('bimbingan.destroy');
         Route::get('/bimbingan/cetak', [BimbinganController::class, 'cetak'])->name('bimbingan.cetak');
 
@@ -114,11 +107,7 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         // --- 3. Jadwal & Booking ---
         Route::get('/jadwal', [JadwalController::class, 'index'])->name('jadwal.index');
         Route::post('/jadwal', [JadwalController::class, 'store'])->name('jadwal.store');
-        
-        // [BARU] Route untuk menyetujui Reschedule dari Dosen
         Route::patch('/jadwal/{id}/approve-reschedule', [JadwalController::class, 'approveReschedule'])->name('jadwal.approveReschedule');
-        
-        // [BARU] Route untuk membatalkan/menolak jadwal
         Route::delete('/jadwal/{id}', [JadwalController::class, 'destroy'])->name('jadwal.destroy');
     });
 
@@ -134,13 +123,11 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         Route::get('/validasi-dokumen', [DosenController::class, 'showDokumenValidasi'])->name('validasi.dokumen.index');
         Route::post('/validasi-dokumen', [DosenController::class, 'storeDokumenValidasi'])->name('validasi.dokumen.store');
         
-        // Data Mahasiswa Bimbingan
+        // Data Mahasiswa
         Route::get('/mahasiswa', [DosenController::class, 'showMahasiswaList'])->name('mahasiswa.index');
         
-        // Jadwal
+        // Jadwal (Pastikan nama route ini sesuai view)
         Route::get('/kelola-jadwal', [DosenController::class, 'showJadwalValidasi'])->name('jadwal.index');
-        
-        // [PERBAIKAN UTAMA] Mengubah nama route agar sesuai dengan yang dipanggil di View (dosen.kelola-jadwal)
         Route::post('/kelola-jadwal', [DosenController::class, 'storeJadwalValidasi'])->name('kelola-jadwal');
         
         // Arsip
@@ -153,17 +140,14 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/dashboard', [AdminController::class, 'index'])->name('dashboard');
         
-        // --- Manajemen Dosen ---
         Route::get('/dosen', [AdminController::class, 'indexDosen'])->name('dosen.index');
         Route::post('/dosen', [AdminController::class, 'storeDosen'])->name('dosen.store');
         Route::get('/dosen/{dosen}/edit', [AdminController::class, 'editDosen'])->name('dosen.edit');
         Route::put('/dosen/{dosen}', [AdminController::class, 'updateDosen'])->name('dosen.update');
         Route::delete('/dosen/{dosen}', [AdminController::class, 'destroyDosen'])->name('dosen.destroy');
 
-        // --- Manajemen Mahasiswa ---
         Route::post('/mahasiswa/generate-kelas', [AdminController::class, 'generateKelas'])->name('mahasiswa.generate-kelas');
         Route::post('/mahasiswa/bulk-plotting', [AdminController::class, 'bulkPlotting'])->name('mahasiswa.bulk-plotting');
-
         Route::post('/mahasiswa/import', [AdminController::class, 'importMahasiswa'])->name('mahasiswa.import');
         Route::get('/mahasiswa/template', [AdminController::class, 'downloadTemplate'])->name('mahasiswa.template');
 
@@ -174,7 +158,6 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         Route::put('/mahasiswa/{mahasiswa}', [AdminController::class, 'updateMahasiswa'])->name('mahasiswa.update');
         Route::delete('/mahasiswa/{mahasiswa}', [AdminController::class, 'destroyMahasiswa'])->name('mahasiswa.destroy');
         
-        // --- Pengaturan Sistem ---
         Route::get('/settings', [AdminController::class, 'settings'])->name('settings.index');
         Route::post('/settings', [AdminController::class, 'updateSettings'])->name('settings.update');
     });

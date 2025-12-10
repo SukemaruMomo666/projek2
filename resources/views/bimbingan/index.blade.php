@@ -40,7 +40,7 @@
         </div>
         <div>
             <a href="{{ route('bimbingan.cetak') }}" target="_blank" class="btn btn-outline-dark me-2">
-                <i class="fas fa-print me-1"></i> Cetak
+                <i class="fas fa-print me-1"></i> Cetak PDF
             </a>
             
             <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#addLogModal">
@@ -179,14 +179,77 @@
                                 @else <span class="badge bg-secondary status-badge">PENDING</span> @endif
                             </td>
                             <td class="text-end">
+                                
+                                {{-- TOMBOL AKSI DINAMIS --}}
                                 @if($log->status == 'Menunggu')
                                     <form action="{{ route('bimbingan.destroy', $log->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Hapus?')">
                                         @csrf @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus"><i class="fas fa-trash"></i></button>
                                     </form>
+                                
+                                @elseif($log->status == 'Revisi')
+                                    <button class="btn btn-sm btn-warning text-dark fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#editLogModal{{ $log->id }}">
+                                        <i class="fas fa-edit me-1"></i> Perbaiki
+                                    </button>
                                 @endif
+
                             </td>
                         </tr>
+
+                        @if($log->status == 'Revisi')
+                        <div class="modal fade" id="editLogModal{{ $log->id }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-lg modal-dialog-centered">
+                                <div class="modal-content border-0 shadow">
+                                    <div class="modal-header bg-warning">
+                                        <h5 class="modal-title fw-bold text-dark"><i class="fas fa-edit me-2"></i>Perbaiki Logbook</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <form action="{{ route('bimbingan.update', $log->id) }}" method="POST" enctype="multipart/form-data">
+                                        @csrf @method('PUT')
+                                        <div class="modal-body p-4 text-start">
+                                            
+                                            <div class="alert alert-warning d-flex align-items-center small py-2 mb-3">
+                                                <i class="fas fa-exclamation-triangle me-2 fs-5"></i>
+                                                <div><strong>Catatan Dosen:</strong> "{{ $log->catatan_dosen }}"</div>
+                                            </div>
+
+                                            <div class="row g-3">
+                                                <div class="col-md-12">
+                                                    <label class="form-label fw-bold">Tahapan (Tidak diubah)</label>
+                                                    <input type="text" class="form-control bg-light" value="{{ Str::before($log->materi, ':') }}" readonly>
+                                                </div>
+
+                                                <div class="col-md-12">
+                                                    <label class="form-label fw-bold">Detail Materi (Silakan Edit)</label>
+                                                    <input type="text" class="form-control" name="detail_materi" value="{{ trim(Str::after($log->materi, ':')) }}" required>
+                                                </div>
+
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-bold">Tanggal</label>
+                                                    <input type="date" class="form-control" name="tanggal_bimbingan" value="{{ $log->tanggal_bimbingan->format('Y-m-d') }}" required>
+                                                </div>
+
+                                                <div class="col-md-6">
+                                                    <label class="form-label fw-bold">Upload File Baru (Jika perlu)</label>
+                                                    <input type="file" class="form-control" name="file" accept=".pdf,.jpg,.jpeg,.png,.docx">
+                                                    <div class="form-text small">Kosongkan jika tidak ingin mengganti file.</div>
+                                                </div>
+
+                                                <div class="col-md-12">
+                                                    <label class="form-label fw-bold">Hasil Diskusi / Perbaikan</label>
+                                                    <textarea class="form-control" name="catatan_mahasiswa" rows="4" required>{{ $log->catatan_mahasiswa }}</textarea>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer bg-light">
+                                            <button type="button" class="btn btn-link text-muted" data-bs-dismiss="modal">Batal</button>
+                                            <button type="submit" class="btn btn-warning fw-bold px-4">Kirim Perbaikan</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        @endif
                         @empty
                         <tr><td colspan="6" class="text-center p-5 text-muted">Belum ada riwayat.</td></tr>
                         @endforelse
@@ -207,7 +270,6 @@
             <form action="{{ route('bimbingan.store') }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="modal-body p-4">
-                    
                     <div class="alert alert-info d-flex align-items-center small py-2 mb-3">
                         <i class="fas fa-info-circle me-2 fs-5"></i>
                         <div>
@@ -218,27 +280,21 @@
                             @endif
                         </div>
                     </div>
-
                     <div class="row g-3">
-                        
                         <div class="col-md-12">
                             <label class="form-label fw-bold">Ambil dari Jadwal ACC (Opsional)</label>
                             <select class="form-select bg-light border-primary" id="pilihJadwal" onchange="isiOtomatis(this)">
                                 <option value="" selected>-- Input Manual (Tanpa Jadwal) --</option>
                                 @if(isset($jadwalDisetujui) && $jadwalDisetujui->count() > 0)
                                     @foreach($jadwalDisetujui as $jadwal)
-                                        <option value="{{ $jadwal->id }}" 
-                                                data-tanggal="{{ $jadwal->tanggal_pertemuan->format('Y-m-d') }}"
-                                                data-topik="{{ $jadwal->topik }}">
+                                        <option value="{{ $jadwal->id }}" data-tanggal="{{ $jadwal->tanggal_pertemuan->format('Y-m-d') }}" data-topik="{{ $jadwal->topik }}">
                                             [ACC] {{ $jadwal->tanggal_pertemuan->format('d M') }} - {{ Str::limit($jadwal->topik, 40) }}
                                         </option>
                                     @endforeach
                                 @endif
                             </select>
                         </div>
-                        
                         <hr>
-
                         <div class="col-md-5">
                             <label for="tahapan" class="form-label fw-bold">Jenis Kegiatan</label>
                             <select class="form-select" id="tahapan" name="tahapan" required>
@@ -260,22 +316,18 @@
                                 @endif
                             </select>
                         </div>
-
                         <div class="col-md-7">
                             <label for="detail_materi" class="form-label fw-bold">Topik Pembahasan</label>
                             <input type="text" class="form-control" id="detail_materi" name="detail_materi" placeholder="Contoh: Diskusi nilai / Revisi Bab 1..." required>
                         </div>
-
                         <div class="col-md-6">
                             <label for="tanggal_bimbingan" class="form-label fw-bold">Tanggal</label>
                             <input type="date" class="form-control" id="tanggal_bimbingan" name="tanggal_bimbingan" value="{{ date('Y-m-d') }}" max="{{ date('Y-m-d') }}" required>
                         </div>
-
                         <div class="col-md-6">
                             <label for="file" class="form-label fw-bold">Bukti Foto / Dokumen</label>
                             <input type="file" class="form-control" id="file" name="file" accept=".pdf,.jpg,.jpeg,.png,.docx">
                         </div>
-
                         <div class="col-md-12">
                             <label for="catatan_mahasiswa" class="form-label fw-bold">Hasil Diskusi</label>
                             <textarea class="form-control" id="catatan_mahasiswa" name="catatan_mahasiswa" rows="4" placeholder="Tuliskan poin penting arahan dosen..." required></textarea>
@@ -296,11 +348,9 @@
         var selectedOption = selectObject.options[selectObject.selectedIndex];
         var tanggal = selectedOption.getAttribute('data-tanggal');
         var topik = selectedOption.getAttribute('data-topik');
-
         if (tanggal && topik) {
             document.getElementById('tanggal_bimbingan').value = tanggal;
             document.getElementById('detail_materi').value = topik;
-            
             var tahapan = document.getElementById('tahapan');
             if(tahapan.value == "") tahapan.selectedIndex = 1; 
         }

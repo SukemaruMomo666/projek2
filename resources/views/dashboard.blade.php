@@ -16,17 +16,24 @@
     /* Revisi Alert Box */
     .revisi-alert { border-left: 5px solid #dc3545; background-color: #fff5f5; color: #842029; }
     
-    /* Schedule Box */
-    .schedule-box { background: #f8f9fa; border-radius: 10px; border: 1px solid #e9ecef; transition: all 0.3s; }
-    .schedule-box:hover { border-color: #0d6efd; background: #fff; box-shadow: 0 5px 15px rgba(13, 110, 253, 0.1); }
-    
+    /* STEP PROGRESS BAR (Khusus Skripsi) */
+    .step-progress { display: flex; justify-content: space-between; position: relative; margin: 20px 0; }
+    .step-progress::before { content: ''; position: absolute; top: 15px; left: 0; width: 100%; height: 3px; background: #e9ecef; z-index: 0; }
+    .step-item { position: relative; z-index: 1; text-align: center; width: 100%; }
+    .step-circle { width: 35px; height: 35px; background: #e9ecef; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; color: #6c757d; font-weight: bold; border: 3px solid #fff; box-shadow: 0 0 0 2px #e9ecef; transition: all 0.3s; }
+    .step-item.active .step-circle { background: #0d6efd; color: white; box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.2); }
+    .step-item.completed .step-circle { background: #198754; color: white; box-shadow: 0 0 0 2px #198754; }
+    .step-label { font-size: 0.8rem; color: #6c757d; font-weight: 600; }
+    .step-item.active .step-label { color: #0d6efd; }
+    .step-item.completed .step-label { color: #198754; }
+
     .avatar-circle { width: 60px; height: 60px; background-color: #e9ecef; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #495057; }
 </style>
 @endpush
 
 @section('content')
 
-{{-- LOGIKA CEK LEVEL --}}
+{{-- LOGIKA CEK LEVEL & PROGRESS SKRIPSI --}}
 @php
     $user = Auth::user();
     $prodi = strtolower($user->prodi ?? '');
@@ -35,6 +42,20 @@
     $isSkripsi = false; 
     if (str_contains($prodi, 'sistem informasi') && $semester >= 5) $isSkripsi = true;
     elseif (str_contains($prodi, 'rekayasa perangkat lunak') && $semester >= 7) $isSkripsi = true;
+
+    // Logika Progress Bar Skripsi (Sederhana berdasarkan logbook terakhir)
+    $tahapanSkripsi = ['Judul', 'Bab 1', 'Bab 2', 'Bab 3', 'Bab 4', 'Bab 5', 'Sidang'];
+    $currentStepIndex = 0;
+    
+    if ($logbooksTerkini->count() > 0) {
+        $lastMateri = $logbooksTerkini->first()->materi;
+        foreach ($tahapanSkripsi as $index => $tahap) {
+            if (str_contains($lastMateri, $tahap)) {
+                $currentStepIndex = $index + 1; // +1 karena index mulai 0
+                break;
+            }
+        }
+    }
 @endphp
 
 <div class="container-fluid px-4 pb-5">
@@ -45,9 +66,9 @@
             <div class="card welcome-card shadow-sm mb-4">
                 <div class="card-body p-4 d-flex align-items-center justify-content-between position-relative" style="z-index: 1;">
                     <div>
-                        <h2 class="fw-bold mb-1">Selamat Datang, {{ explode(' ', $user->name)[0] }}! 👋</h2>
+                        <h2 class="fw-bold mb-1">Halo, {{ explode(' ', $user->name)[0] }}! 👋</h2>
                         <p class="mb-0 op-8">
-                            {{ $isSkripsi ? 'Fokus tuntaskan Skripsi semester ini!' : 'Jangan lupa penuhi target perwalianmu.' }}
+                            {{ $isSkripsi ? 'Pantau terus progres skripsimu di sini.' : 'Jangan lupa penuhi target perwalianmu.' }}
                         </p>
                     </div>
                     <div class="d-none d-md-block text-end">
@@ -59,32 +80,58 @@
         </div>
     </div>
 
-    {{-- 2. ALERT REVISI (HANYA MUNCUL JIKA ADA REVISI) --}}
+    {{-- 2. ALERT REVISI --}}
     @if($revisiTerakhir)
     <div class="alert revisi-alert shadow-sm d-flex align-items-center mb-4" role="alert">
-        <div class="me-3 display-4 text-danger">
-            <i class="fas fa-exclamation-circle"></i>
-        </div>
+        <div class="me-3 display-4 text-danger"><i class="fas fa-exclamation-circle"></i></div>
         <div>
-            <h5 class="alert-heading fw-bold mb-1">Perhatian: Ada Revisi yang Harus Diperbaiki!</h5>
+            <h5 class="alert-heading fw-bold mb-1">Perhatian: Ada Revisi!</h5>
             <p class="mb-0">
-                Pada bimbingan tanggal <strong>{{ $revisiTerakhir->tanggal_bimbingan->format('d M Y') }}</strong> ({{ Str::before($revisiTerakhir->materi, ':') }}):
-                <br>
-                <span class="fst-italic text-dark">"{{ $revisiTerakhir->catatan_dosen }}"</span>
+                Catatan Dosen pada <strong>{{ $revisiTerakhir->tanggal_bimbingan->format('d M') }}</strong>: 
+                <span class="fst-italic">"{{ Str::limit($revisiTerakhir->catatan_dosen, 80) }}"</span>
             </p>
-            <a href="{{ route('bimbingan.index') }}" class="btn btn-sm btn-danger mt-2">Lihat Detail & Perbaiki</a>
+            <a href="{{ route('bimbingan.index') }}" class="btn btn-sm btn-danger mt-2">Perbaiki Sekarang</a>
         </div>
     </div>
     @endif
 
-    {{-- 3. JADWAL MENDATANG & TARGET --}}
+    {{-- 3. PROGRESS BAR SKRIPSI (KHUSUS SENIOR) --}}
+    @if($isSkripsi)
+    <div class="card shadow-sm border-0 mb-4 rounded-3">
+        <div class="card-header card-header-custom text-dark">
+            <i class="fas fa-route me-2 text-primary"></i> Timeline Skripsi Saya
+        </div>
+        <div class="card-body">
+            <div class="step-progress">
+                @foreach($tahapanSkripsi as $index => $label)
+                    @php 
+                        $statusClass = '';
+                        $icon = $index + 1;
+                        if ($index < $currentStepIndex) {
+                            $statusClass = 'completed'; 
+                            $icon = '<i class="fas fa-check"></i>';
+                        } elseif ($index == $currentStepIndex) {
+                            $statusClass = 'active'; 
+                        }
+                    @endphp
+                    <div class="step-item {{ $statusClass }}">
+                        <div class="step-circle">{!! $icon !!}</div>
+                        <div class="step-label">{{ $label }}</div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- 4. KARTU UTAMA --}}
     <div class="row g-4 mb-4">
         
-        {{-- Jadwal Bimbingan Selanjutnya --}}
+        {{-- Jadwal Bimbingan --}}
         <div class="col-md-6 col-xl-4">
             <div class="card h-100 border-0 shadow-sm rounded-3">
                 <div class="card-header card-header-custom text-primary">
-                    <i class="fas fa-calendar-alt me-2"></i> Jadwal Bimbingan Selanjutnya
+                    <i class="fas fa-calendar-alt me-2"></i> Jadwal Mendatang
                 </div>
                 <div class="card-body">
                     @if($jadwalMendatang)
@@ -95,108 +142,82 @@
                             </span>
                             <p class="text-muted small mb-0">{{ $jadwalMendatang->topik }}</p>
                         </div>
-                        <div class="d-flex align-items-center justify-content-center bg-light p-2 rounded">
-                            <img src="https://ui-avatars.com/api/?name={{ urlencode($jadwalMendatang->dosen->name) }}&size=30" class="rounded-circle me-2">
-                            <small class="fw-bold text-dark">Dosen: {{ explode(' ', $jadwalMendatang->dosen->name)[0] }}</small>
-                        </div>
-                        <div class="mt-3 text-center">
-                            @if($jadwalMendatang->status == 'Menunggu')
-                                <span class="badge bg-warning text-dark">Menunggu Konfirmasi</span>
-                            @elseif($jadwalMendatang->status == 'Disetujui')
-                                <span class="badge bg-success">Disetujui (ACC)</span>
-                            @endif
+                        <div class="text-center">
+                            @if($jadwalMendatang->status == 'Menunggu') <span class="badge bg-warning text-dark">Menunggu Konfirmasi</span>
+                            @elseif($jadwalMendatang->status == 'Disetujui') <span class="badge bg-success">Disetujui (ACC)</span> @endif
                         </div>
                     @else
                         <div class="text-center py-4">
-                            <img src="https://img.icons8.com/ios/100/cccccc/calendar.png" width="50" class="mb-3 opacity-50">
                             <h6 class="text-muted">Tidak Ada Jadwal</h6>
-                            <p class="small text-muted mb-3">Segera ajukan pertemuan dengan dosen.</p>
-                            <a href="{{ route('jadwal.index') }}" class="btn btn-sm btn-outline-primary rounded-pill">
-                                <i class="fas fa-plus me-1"></i> Ajukan Jadwal
-                            </a>
+                            <a href="{{ route('jadwal.index') }}" class="btn btn-sm btn-outline-primary rounded-pill mt-2">Ajukan Jadwal</a>
                         </div>
                     @endif
                 </div>
             </div>
         </div>
 
-        {{-- Statistik Target / Progress --}}
+        {{-- Statistik Bimbingan --}}
         <div class="col-md-6 col-xl-4">
             <div class="card h-100 border-0 shadow-sm rounded-3">
                 <div class="card-header card-header-custom text-success">
-                    <i class="fas fa-chart-line me-2"></i> 
-                    {{ $isSkripsi ? 'Progres Skripsi' : 'Target Perwalian Semester' }}
+                    <i class="fas fa-chart-pie me-2"></i> Statistik Bimbingan
                 </div>
-                <div class="card-body text-center d-flex flex-column justify-content-center">
-                    
-                    @if(!$isSkripsi)
-                        {{-- TAMPILAN JUNIOR: COUNTER SISA --}}
-                        <div class="mb-2">
-                            <span class="display-4 fw-bold {{ $sisaPerwalian > 0 ? 'text-danger' : 'text-success' }}">
-                                {{ $sisaPerwalian }}
-                            </span>
-                            <span class="text-muted fs-5">kali lagi</span>
+                <div class="card-body">
+                    <div class="row text-center h-100 align-items-center">
+                        <div class="col-6 border-end">
+                            <h2 class="fw-bold text-primary mb-0">{{ $totalBimbingan }}</h2>
+                            <small class="text-muted text-uppercase" style="font-size: 0.7rem">Total Logbook</small>
                         </div>
-                        <p class="text-muted mb-3">
-                            Anda sudah melakukan <strong>{{ $jumlahPerwalian }}</strong> dari <strong>3</strong> perwalian wajib semester ini.
-                        </p>
-                        <div class="progress" style="height: 10px;">
-                            @php $persen = ($jumlahPerwalian / 3) * 100; @endphp
-                            <div class="progress-bar bg-{{ $persen >= 100 ? 'success' : 'warning' }}" role="progressbar" style="width: {{ $persen }}%"></div>
+                        <div class="col-6">
+                            <h2 class="fw-bold text-success mb-0">{{ $logbooks->where('status', 'Disetujui')->count() }}</h2>
+                            <small class="text-muted text-uppercase" style="font-size: 0.7rem">Sudah ACC</small>
                         </div>
-                    @else
-                        {{-- TAMPILAN SENIOR: PROGRESS BAB --}}
-                        <h5 class="fw-bold mb-3">{{ $logbooksTerkini->first()->materi ?? 'Belum Mulai' }}</h5>
-                        <div class="progress mb-3" style="height: 15px;">
-                            <div class="progress-bar bg-primary progress-bar-striped progress-bar-animated" style="width: 25%">25%</div>
+                        @if($isSkripsi)
+                        <div class="col-12 mt-3 pt-3 border-top">
+                            <div class="d-flex justify-content-between small px-2">
+                                <span>Bab 1: <strong>{{ $logbooks->filter(fn($l)=>str_contains($l->materi, 'Bab 1'))->count() }}x</strong></span>
+                                <span>Bab 2: <strong>{{ $logbooks->filter(fn($l)=>str_contains($l->materi, 'Bab 2'))->count() }}x</strong></span>
+                                <span>Bab 3: <strong>{{ $logbooks->filter(fn($l)=>str_contains($l->materi, 'Bab 3'))->count() }}x</strong></span>
+                            </div>
                         </div>
-                        <small class="text-muted">Target Sidang: <strong>{{ date('Y') + 1 }}</strong></small>
-                    @endif
-
+                        @endif
+                    </div>
                 </div>
             </div>
         </div>
 
-        {{-- Info Dosen Pembimbing --}}
+        {{-- Info Dosen --}}
         <div class="col-md-12 col-xl-4">
             <div class="card h-100 border-0 shadow-sm rounded-3">
                 <div class="card-header card-header-custom text-info">
                     <i class="fas fa-chalkboard-teacher me-2"></i> Dosen Pembimbing
                 </div>
-                <div class="card-body text-center p-4">
-                    <div class="avatar-circle mx-auto mb-3 bg-light text-primary border border-primary">
-                        @if($dosen)
+                <div class="card-body text-center p-3">
+                    @if($dosen)
+                        <div class="avatar-circle mx-auto mb-2 bg-light text-primary border border-primary">
                             <img src="https://ui-avatars.com/api/?name={{ urlencode($dosen->name) }}&background=random" class="rounded-circle w-100 h-100">
-                        @else
-                            <i class="fas fa-user-slash"></i>
-                        @endif
-                    </div>
-                    
-                    @if ($dosen)
-                        <h5 class="fw-bold mb-1">{{ $dosen->name }}</h5>
-                        <p class="text-muted mb-3 small">NIDN: {{ $dosen->nidn ?? '-' }}</p>
-                        <div class="d-grid gap-2">
-                            <a href="https://wa.me/" target="_blank" class="btn btn-outline-success btn-sm rounded-pill">
-                                <i class="fab fa-whatsapp me-1"></i> WhatsApp
-                            </a>
-                            <a href="mailto:{{ $dosen->email }}" class="btn btn-outline-secondary btn-sm rounded-pill">
-                                <i class="fas fa-envelope me-1"></i> Email
-                            </a>
+                        </div>
+                        <h6 class="fw-bold mb-0">{{ $dosen->name }}</h6>
+                        <small class="text-muted d-block mb-3">NIDN: {{ $dosen->nidn ?? '-' }}</small>
+                        <div class="d-flex justify-content-center gap-2">
+                            <a href="https://wa.me/" class="btn btn-outline-success btn-sm rounded-pill"><i class="fab fa-whatsapp"></i> Chat</a>
+                            <a href="mailto:{{ $dosen->email }}" class="btn btn-outline-secondary btn-sm rounded-pill"><i class="fas fa-envelope"></i> Email</a>
                         </div>
                     @else
-                        <h5 class="fw-bold mb-1 text-danger">Belum Ditentukan</h5>
-                        <p class="text-muted small mb-3">Hubungi admin prodi untuk plotting.</p>
-                        <button class="btn btn-secondary btn-sm disabled w-100">Hubungi Dosen</button>
+                        <div class="text-center py-4">
+                            <i class="fas fa-user-slash fa-2x text-muted mb-2"></i>
+                            <p class="small">Belum ditentukan.</p>
+                        </div>
                     @endif
                 </div>
             </div>
         </div>
     </div>
 
-    {{-- 4. TABEL AKTIVITAS TERAKHIR --}}
+    {{-- 5. TABEL AKTIVITAS TERAKHIR --}}
     <div class="card shadow-sm border-0 rounded-3">
         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-            <h6 class="m-0 fw-bold text-dark"><i class="fas fa-history me-2 text-muted"></i>Aktivitas Bimbingan Terakhir</h6>
+            <h6 class="m-0 fw-bold text-dark"><i class="fas fa-history me-2 text-muted"></i>Logbook Terakhir</h6>
             <a href="{{ route('bimbingan.index') }}" class="btn btn-sm btn-link text-decoration-none">Lihat Semua &rarr;</a>
         </div>
         <div class="card-body p-0">
@@ -205,7 +226,7 @@
                     <thead class="bg-light text-muted small text-uppercase">
                         <tr>
                             <th class="ps-4">Tanggal</th>
-                            <th>Topik</th>
+                            <th>Materi / Topik</th>
                             <th class="text-center">Status</th>
                         </tr>
                     </thead>
@@ -215,22 +236,16 @@
                             <td class="ps-4 fw-bold text-secondary">{{ \Carbon\Carbon::parse($log->tanggal_bimbingan)->format('d M Y') }}</td>
                             <td>
                                 <div class="text-dark fw-bold">{{ Str::limit($log->materi, 50) }}</div>
-                                <small class="text-muted">{{ Str::limit($log->catatan_mahasiswa, 40) }}</small>
+                                <small class="text-muted">{{ Str::limit($log->catatan_mahasiswa, 60) }}</small>
                             </td>
                             <td class="text-center">
-                                @if ($log->status == 'Disetujui')
-                                    <span class="badge bg-success bg-opacity-10 text-success px-3 rounded-pill">ACC</span>
-                                @elseif ($log->status == 'Revisi')
-                                    <span class="badge bg-danger bg-opacity-10 text-danger px-3 rounded-pill">REVISI</span>
-                                @else
-                                    <span class="badge bg-warning bg-opacity-10 text-warning px-3 rounded-pill">PENDING</span>
-                                @endif
+                                @if ($log->status == 'Disetujui') <span class="badge bg-success bg-opacity-10 text-success px-3 rounded-pill">ACC</span>
+                                @elseif ($log->status == 'Revisi') <span class="badge bg-danger bg-opacity-10 text-danger px-3 rounded-pill">REVISI</span>
+                                @else <span class="badge bg-warning bg-opacity-10 text-warning px-3 rounded-pill">PENDING</span> @endif
                             </td>
                         </tr>
                         @empty
-                        <tr>
-                            <td colspan="3" class="text-center py-4 text-muted">Belum ada aktivitas.</td>
-                        </tr>
+                        <tr><td colspan="3" class="text-center py-4 text-muted">Belum ada aktivitas.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
