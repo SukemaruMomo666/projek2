@@ -34,6 +34,7 @@
 @section('content')
 <div class="container-fluid px-4 pb-5">
     
+    <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mt-4 mb-4">
         <div>
             <h1 class="h2 fw-bold mb-0 text-dark">Kelola Jadwal</h1>
@@ -41,6 +42,7 @@
         </div>
     </div>
 
+    <!-- Alert Sukses (Setelah submit review) -->
     @if (session('success'))
         <div class="alert alert-success alert-dismissible fade show shadow-sm border-0" role="alert">
             <i class="fas fa-check-circle me-2"></i>
@@ -48,6 +50,7 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     @endif
+    <!-- Alert Error Validasi (Jika form salah) -->
     @if ($errors->any())
         <div class="alert alert-danger alert-dismissible fade show shadow-sm border-0" role="alert">
             <i class="fas fa-exclamation-triangle me-2"></i>
@@ -61,6 +64,7 @@
         </div>
     @endif
 
+    <!-- 1. DAFTAR MENUNGGU VALIDASI (Prioritas) -->
     <div class="card shadow border-0 rounded-3 mb-4">
         <div class="card-header bg-warning bg-opacity-10 py-3">
             <h6 class="m-0 fw-bold text-warning-emphasis"><i class="fas fa-clock me-2"></i>Menunggu Respon Anda ({{ $jadwalMenunggu->count() }})</h6>
@@ -71,9 +75,11 @@
             <div class="card shadow-sm border-0 jadwal-item mb-3">
                 <div class="card-body p-3 p-md-4">
                     <div class="d-flex">
+                        <!-- Foto Mahasiswa -->
                         <img src="https://ui-avatars.com/api/?name={{ urlencode($jadwal->mahasiswa->name) }}&background=random&color=fff" 
                              class="jadwal-avatar me-3" alt="{{ $jadwal->mahasiswa->name }}">
                         
+                        <!-- Info Utama -->
                         <div class="flex-grow-1">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div>
@@ -85,6 +91,7 @@
                             
                             <hr class="my-3">
 
+                            <!-- Isi Jadwal -->
                             <div class="jadwal-body">
                                 <h6 class="fw-bold">Mengajukan Jadwal: <span class="text-primary">{{ $jadwal->tanggal_pertemuan->format('l, d F Y') }}</span> pukul <span class="text-primary">{{ $jadwal->waktu_mulai }}</span></h6>
                                 
@@ -97,8 +104,11 @@
                                 @endif
                             </div>
 
+                            <!-- Tombol Aksi Dosen -->
                             <div class="text-end mt-3">
                                 
+                                <!-- ================= PERBAIKAN: ACTION DIPERBAIKI ================= -->
+                                <!-- Form untuk TOLAK -->
                                 <form action="{{ route('dosen.jadwal.store') }}" method="POST" class="d-inline">
                                     @csrf
                                     <input type="hidden" name="jadwal_id" value="{{ $jadwal->id }}">
@@ -107,6 +117,7 @@
                                         <i class="fas fa-times me-1"></i> Tolak
                                     </button>
                                 </form>
+                                <!-- Form untuk SETUJUI -->
                                 <form action="{{ route('dosen.jadwal.store') }}" method="POST" class="d-inline ms-2">
                                     @csrf
                                     <input type="hidden" name="jadwal_id" value="{{ $jadwal->id }}">
@@ -115,7 +126,9 @@
                                         <i class="fas fa-check me-1"></i> Setujui
                                     </button>
                                 </form>
-                                </div>
+                                <!-- ================= AKHIR PERBAIKAN ================= -->
+
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -131,6 +144,7 @@
     </div>
 
 
+    <!-- 2. RIWAYAT JADWAL (Selesai) -->
     <div class="card shadow border-0 rounded-3">
         <div class="card-header bg-light py-3">
             <h6 class="m-0 fw-bold text-dark"><i class="fas fa-history me-2"></i>Riwayat Jadwal Terkonfirmasi</h6>

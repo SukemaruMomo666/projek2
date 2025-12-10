@@ -10,7 +10,8 @@ use App\Http\Controllers\BimbinganController;
 use App\Http\Controllers\DokumenController;
 use App\Http\Controllers\JadwalController;
 use App\Http\Controllers\DosenController;
-use App\Http\Controllers\AdminController; // <--- PERBAIKAN DI SINI
+use App\Http\Controllers\AdminController;
+use App\Http\Controllers\VerificationController;
 
 // Model
 use App\Models\Bimbingan;
@@ -23,144 +24,114 @@ use App\Models\Bimbingan;
 
 // --- 1. RUTE PUBLIK & OTENTIKASI (HANYA UNTUK TAMU) ---
 Route::middleware('guest')->group(function () {
-    
-    Route::get('/', function () {
-        return view('auth.login');
-    });
-
-    // Login Microsoft
+    Route::get('/', function () { return view('auth.login'); });
     Route::get('/auth/microsoft/redirect', [SocialiteController::class, 'microsoftRedirect'])->name('login.microsoft.redirect');
     Route::get('/auth/microsoft/callback', [SocialiteController::class, 'microsoftCallback'])->name('login.microsoft.callback');
-
 });
 
-
-// --- 2. RUTE GLOBAL (SEMUA YANG SUDAH LOGIN) ---
+// --- 2. RUTE AKTIVASI AKUN (Wajib Login tapi Belum Ganti Password) ---
 Route::middleware(['auth'])->group(function () {
+    Route::get('/aktivasi-akun', [VerificationController::class, 'show'])->name('first-login.show');
+    Route::put('/aktivasi-akun', [VerificationController::class, 'update'])->name('first-login.update');
+});
 
-    /**
-     * Rute Dashboard Cerdas (Logic Redirector)
-     * Mengarahkan User sesuai Role-nya
-     */
+// --- 3. RUTE GLOBAL (SUDAH LOGIN + SUDAH GANTI PASSWORD) ---
+Route::middleware(['auth', 'password.changed'])->group(function () {
+
+    // Dashboard Cerdas (Logic Redirect Berdasarkan Role)
     Route::get('/dashboard', function () {
         $user = Auth::user();
         
-        // 1. Cek jika Admin
-        if ($user->role === 'admin') {
-            return redirect()->route('admin.dashboard');
-        }
+        if ($user->role === 'admin') return redirect()->route('admin.dashboard');
+        if ($user->role === 'dosen') return redirect()->route('dosen.dashboard');
 
-        // 2. Cek jika Dosen
-        if ($user->role === 'dosen') {
-            return redirect()->route('dosen.dashboard');
-        }
-
-        // 3. Sisanya adalah Mahasiswa
-        // --- Logika Dashboard Mahasiswa ---
+        // Logika Khusus Dashboard Mahasiswa
         $dosen = $user->dosenPembimbing;
-        
-        $logbooks = Bimbingan::where('mahasiswa_id', $user->id)
-                            ->orderBy('tanggal_bimbingan', 'desc')
-                            ->get();
-        
-        $logbooksTerkini = $logbooks->take(3);
-        $totalBimbingan = $logbooks->count();
-        $statusTerkini = $logbooks->first()->status ?? 'Belum Ada';
+        $logbooks = Bimbingan::where('mahasiswa_id', $user->id)->orderBy('tanggal_bimbingan', 'desc')->get();
         
         return view('dashboard', [
             'dosen' => $dosen,
-            'logbooksTerkini' => $logbooksTerkini,
-            'totalBimbingan' => $totalBimbingan,
-            'statusTerkini' => $statusTerkini,
+            'logbooksTerkini' => $logbooks->take(3),
+            'totalBimbingan' => $logbooks->count(),
+            'statusTerkini' => $logbooks->first()->status ?? 'Belum Ada',
         ]);
-
     })->name('dashboard');
 
-    // Profil (Breeze)
+    // Profil User
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-});
 
+    // ====================================================
+    // GRUP RUTE MAHASISWA
+    // ====================================================
+    Route::middleware('role:mahasiswa')->group(function () {
+        Route::get('/bimbingan', [BimbinganController::class, 'index'])->name('bimbingan.index');
+        Route::post('/bimbingan', [BimbinganController::class, 'store'])->name('bimbingan.store');
+        Route::get('/bimbingan/upload', [DokumenController::class, 'index'])->name('bimbingan.upload');
+        Route::post('/bimbingan/upload', [DokumenController::class, 'store'])->name('bimbingan.upload.store');
+        Route::get('/jadwal', [JadwalController::class, 'index'])->name('jadwal.index');
+        Route::post('/jadwal', [JadwalController::class, 'store'])->name('jadwal.store');
+    });
 
-// --- 3. RUTE KHUSUS MAHASISWA ---
-Route::middleware(['auth', 'role:mahasiswa'])->group(function () {
+    // ====================================================
+    // GRUP RUTE DOSEN
+    // ====================================================
+    Route::middleware('role:dosen')->prefix('dosen')->name('dosen.')->group(function () {
+        Route::get('/dashboard', [DosenController::class, 'index'])->name('dashboard');
+        
+        // Validasi
+        Route::get('/validasi-logbook', [DosenController::class, 'showLogbookValidasi'])->name('validasi.logbook.index');
+        Route::post('/validasi-logbook', [DosenController::class, 'storeLogbookValidasi'])->name('validasi.logbook.store');
+        Route::get('/validasi-dokumen', [DosenController::class, 'showDokumenValidasi'])->name('validasi.dokumen.index');
+        Route::post('/validasi-dokumen', [DosenController::class, 'storeDokumenValidasi'])->name('validasi.dokumen.store');
+        
+        // Data Mahasiswa Bimbingan
+        Route::get('/mahasiswa', [DosenController::class, 'showMahasiswaList'])->name('mahasiswa.index');
+        
+        // Jadwal
+        Route::get('/kelola-jadwal', [DosenController::class, 'showJadwalValidasi'])->name('jadwal.index');
+        Route::post('/kelola-jadwal', [DosenController::class, 'storeJadwalValidasi'])->name('jadwal.store');
+        
+        // Arsip
+        Route::get('/arsip', [DosenController::class, 'showArsip'])->name('arsip.index');
+    });
 
-    // Logbook
-    Route::get('/bimbingan', [BimbinganController::class, 'index'])->name('bimbingan.index');
-    Route::post('/bimbingan', [BimbinganController::class, 'store'])->name('bimbingan.store');
+    // ====================================================
+    // GRUP RUTE ADMIN
+    // ====================================================
+    Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
+        Route::get('/dashboard', [AdminController::class, 'index'])->name('dashboard');
+        
+        // --- Manajemen Dosen ---
+        Route::get('/dosen', [AdminController::class, 'indexDosen'])->name('dosen.index');
+        Route::post('/dosen', [AdminController::class, 'storeDosen'])->name('dosen.store');
+        Route::get('/dosen/{dosen}/edit', [AdminController::class, 'editDosen'])->name('dosen.edit');
+        Route::put('/dosen/{dosen}', [AdminController::class, 'updateDosen'])->name('dosen.update');
+        Route::delete('/dosen/{dosen}', [AdminController::class, 'destroyDosen'])->name('dosen.destroy');
 
-    // Dokumen
-    Route::get('/bimbingan/upload', [DokumenController::class, 'index'])->name('bimbingan.upload');
-    Route::post('/bimbingan/upload', [DokumenController::class, 'store'])->name('bimbingan.upload.store');
+        // --- Manajemen Mahasiswa ---
+        // 1. Batch Tools (Generate Kelas & Plotting Masal) -> WAJIB ADA DISINI
+        Route::post('/mahasiswa/generate-kelas', [AdminController::class, 'generateKelas'])->name('mahasiswa.generate-kelas');
+        Route::post('/mahasiswa/bulk-plotting', [AdminController::class, 'bulkPlotting'])->name('mahasiswa.bulk-plotting');
 
-    // Jadwal
-    Route::get('/jadwal', [JadwalController::class, 'index'])->name('jadwal.index');
-    Route::post('/jadwal', [JadwalController::class, 'store'])->name('jadwal.store');
-});
+        // 2. Import & Template
+        Route::post('/mahasiswa/import', [AdminController::class, 'importMahasiswa'])->name('mahasiswa.import');
+        Route::get('/mahasiswa/template', [AdminController::class, 'downloadTemplate'])->name('mahasiswa.template');
 
+        // 3. CRUD Mahasiswa Standar
+        Route::get('/mahasiswa', [AdminController::class, 'indexMahasiswa'])->name('mahasiswa.index');
+        Route::get('/mahasiswa/create', [AdminController::class, 'createMahasiswa'])->name('mahasiswa.create');
+        Route::post('/mahasiswa', [AdminController::class, 'storeMahasiswa'])->name('mahasiswa.store');
+        Route::get('/mahasiswa/{mahasiswa}/edit', [AdminController::class, 'editMahasiswa'])->name('mahasiswa.edit');
+        Route::put('/mahasiswa/{mahasiswa}', [AdminController::class, 'updateMahasiswa'])->name('mahasiswa.update');
+        Route::delete('/mahasiswa/{mahasiswa}', [AdminController::class, 'destroyMahasiswa'])->name('mahasiswa.destroy');
+        
+        // --- Pengaturan Sistem ---
+        Route::get('/settings', [AdminController::class, 'settings'])->name('settings.index');
+        Route::post('/settings', [AdminController::class, 'updateSettings'])->name('settings.update');
+    });
 
-// --- 4. RUTE KHUSUS DOSEN ---
-Route::middleware(['auth', 'role:dosen'])->prefix('dosen')->name('dosen.')->group(function () {
-    
-    // Dashboard
-    Route::get('/dashboard', [DosenController::class, 'index'])->name('dashboard');
-
-    // Validasi
-    Route::get('/validasi-logbook', [DosenController::class, 'showLogbookValidasi'])->name('validasi.logbook.index');
-    Route::post('/validasi-logbook', [DosenController::class, 'storeLogbookValidasi'])->name('validasi.logbook.store');
-    
-    // Validasi Dokumen (Perbaikan Rute)
-    Route::get('/validasi-dokumen', [DosenController::class, 'showDokumenValidasi'])->name('validasi.dokumen.index');
-    Route::post('/validasi-dokumen', [DosenController::class, 'storeDokumenValidasi'])->name('validasi.dokumen.store');
-
-    // Data Mahasiswa & Jadwal
-    Route::get('/mahasiswa', [DosenController::class, 'showMahasiswaList'])->name('mahasiswa.index');
-    Route::get('/kelola-jadwal', [DosenController::class, 'showJadwalValidasi'])->name('jadwal.index');
-    Route::post('/kelola-jadwal', [DosenController::class, 'storeJadwalValidasi'])->name('jadwal.store');
-
-    Route::get('/arsip', function() {
-        return "Halaman Arsip Skripsi (Dalam Pengerjaan)";
-    })->name('arsip.index');
-});
-
-
-// --- 5. RUTE KHUSUS ADMIN (BARU) ---
-Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
-    
-    // Dashboard Admin
-    Route::get('/dashboard', [AdminController::class, 'index'])->name('dashboard');
-
-    // --- Kelola Dosen ---
-    Route::get('/dosen', [AdminController::class, 'indexDosen'])->name('dosen.index');
-    Route::get('/dosen/create', [AdminController::class, 'createDosen'])->name('dosen.create');
-    Route::post('/dosen', [AdminController::class, 'storeDosen'])->name('dosen.store');
-    Route::get('/dosen/{dosen}/edit', [AdminController::class, 'editDosen'])->name('dosen.edit');
-    Route::put('/dosen/{dosen}', [AdminController::class, 'updateDosen'])->name('dosen.update');
-    Route::delete('/dosen/{dosen}', [AdminController::class, 'destroyDosen'])->name('dosen.destroy');
-
-    // --- Kelola Mahasiswa ---
-
-    Route::get('/mahasiswa/create', [AdminController::class, 'createMahasiswa'])->name('mahasiswa.create');
-    Route::post('/mahasiswa', [AdminController::class, 'storeMahasiswa'])->name('mahasiswa.store');
-    Route::get('/mahasiswa/{mahasiswa}/edit', [AdminController::class, 'editMahasiswa'])->name('mahasiswa.edit');
-    Route::put('/mahasiswa/{mahasiswa}', [AdminController::class, 'updateMahasiswa'])->name('mahasiswa.update');
-    Route::delete('/mahasiswa/{mahasiswa}', [AdminController::class, 'destroyMahasiswa'])->name('mahasiswa.destroy');
-
-    // ... (Rute Kelola Mahasiswa)
-        // --- Kelola Mahasiswa ---
-    Route::get('/mahasiswa', [AdminController::class, 'indexMahasiswa'])->name('mahasiswa.index');
-    
-    // Rute Import
-    Route::post('/mahasiswa/import', [AdminController::class, 'importMahasiswa'])->name('mahasiswa.import');
-    
-    // RUTE BARU: DOWNLOAD TEMPLATE
-    Route::get('/mahasiswa/template', [AdminController::class, 'downloadTemplate'])->name('mahasiswa.template');
-
-    // --- PENGATURAN SISTEM ---
-    Route::get('/settings', [AdminController::class, 'settings'])->name('settings.index');
-    Route::post('/settings', [AdminController::class, 'updateSettings'])->name('settings.update');
-    
 });
 
 require __DIR__.'/auth.php';

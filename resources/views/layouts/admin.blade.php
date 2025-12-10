@@ -51,6 +51,25 @@
                     <div class="sb-sidenav-menu">
                         <div class="nav">
                             
+                            {{-- LOGIKA PHP: CEK SEMESTER & PRODI UNTUK AKSES SKRIPSI --}}
+                            @php
+                                $user = Auth::user();
+                                $prodi = strtolower($user->prodi ?? '');
+                                $semester = $user->semester ?? 0;
+                                
+                                // Default: Belum boleh skripsi
+                                $bisaSkripsi = false; 
+
+                                // ATURAN 1: Sistem Informasi (Mulai Semester 5)
+                                if (str_contains($prodi, 'sistem informasi') && $semester >= 5) {
+                                    $bisaSkripsi = true;
+                                }
+                                // ATURAN 2: Rekayasa Perangkat Lunak / TRPL (Mulai Semester 7)
+                                elseif (str_contains($prodi, 'rekayasa perangkat lunak') && $semester >= 7) {
+                                    $bisaSkripsi = true;
+                                }
+                            @endphp
+
                             {{-- === 1. MENU MAHASISWA === --}}
                             @if(Auth::user()->role == 'mahasiswa')
                                 
@@ -60,19 +79,26 @@
                                     Dashboard
                                 </a>
 
-                                <div class="sb-sidenav-menu-heading">Akademik</div>
+                                <div class="sb-sidenav-menu-heading">Akademik & Bimbingan</div>
+                                
+                                {{-- LOGBOOK & JADWAL: BISA DIAKSES SEMUA MAHASISWA --}}
                                 <a class="nav-link {{ request()->routeIs('bimbingan.index') ? 'active' : '' }}" href="{{ route('bimbingan.index') }}">
-                                    <div class="sb-nav-link-icon"><i class="fas fa-book-open"></i></div>
+                                    <div class="sb-nav-link-icon"><i class="fas fa-book-reader"></i></div>
                                     Logbook Bimbingan
                                 </a>
-                                <a class="nav-link {{ request()->routeIs('bimbingan.upload') ? 'active' : '' }}" href="{{ route('bimbingan.upload') }}">
-                                    <div class="sb-nav-link-icon"><i class="fas fa-file-upload"></i></div>
-                                    Dokumen Skripsi
-                                </a>
+                                
                                 <a class="nav-link {{ request()->routeIs('jadwal.index') ? 'active' : '' }}" href="{{ route('jadwal.index') }}">
                                     <div class="sb-nav-link-icon"><i class="fas fa-calendar-alt"></i></div>
-                                    Jadwal Dosen
+                                    Bimbingan & Dosen
                                 </a>
+
+                                {{-- DOKUMEN SKRIPSI: HANYA MAHASISWA TINGKAT AKHIR --}}
+                                @if($bisaSkripsi)
+                                    <a class="nav-link {{ request()->routeIs('bimbingan.upload') ? 'active' : '' }}" href="{{ route('bimbingan.upload') }}">
+                                        <div class="sb-nav-link-icon"><i class="fas fa-file-upload"></i></div>
+                                        Dokumen Skripsi
+                                    </a>
+                                @endif
 
                             {{-- === 2. MENU DOSEN === --}}
                             @elseif(Auth::user()->role == 'dosen')
@@ -117,7 +143,7 @@
                                     Arsip Skripsi
                                 </a>
 
-                            {{-- === 3. MENU ADMIN (BARU DITAMBAHKAN) === --}}
+                            {{-- === 3. MENU ADMIN === --}}
                             @elseif(Auth::user()->role == 'admin')
 
                                 <div class="sb-sidenav-menu-heading">Administrator</div>
@@ -127,20 +153,20 @@
                                 </a>
 
                                 <div class="sb-sidenav-menu-heading">Master Data</div>
-<a class="nav-link {{ request()->routeIs('admin.dosen.*') ? 'active' : '' }}" href="{{ route('admin.dosen.index') }}">
-    <div class="sb-nav-link-icon"><i class="fas fa-user-tie"></i></div>
-    Kelola Dosen
-</a>
-<a class="nav-link {{ request()->routeIs('admin.mahasiswa.*') ? 'active' : '' }}" href="{{ route('admin.mahasiswa.index') }}">
+                                <a class="nav-link {{ request()->routeIs('admin.dosen.*') ? 'active' : '' }}" href="{{ route('admin.dosen.index') }}">
+                                    <div class="sb-nav-link-icon"><i class="fas fa-user-tie"></i></div>
+                                    Kelola Dosen
+                                </a>
+                                <a class="nav-link {{ request()->routeIs('admin.mahasiswa.*') ? 'active' : '' }}" href="{{ route('admin.mahasiswa.index') }}">
                                     <div class="sb-nav-link-icon"><i class="fas fa-user-graduate"></i></div>
                                     Kelola Mahasiswa
                                 </a>
 
                                 <div class="sb-sidenav-menu-heading">Sistem</div>
-<a class="nav-link {{ request()->routeIs('admin.settings.index') ? 'active' : '' }}" href="{{ route('admin.settings.index') }}">
-    <div class="sb-nav-link-icon"><i class="fas fa-cogs"></i></div>
-    Pengaturan Sistem
-</a>
+                                <a class="nav-link {{ request()->routeIs('admin.settings.index') ? 'active' : '' }}" href="{{ route('admin.settings.index') }}">
+                                    <div class="sb-nav-link-icon"><i class="fas fa-cogs"></i></div>
+                                    Pengaturan Sistem
+                                </a>
 
                             @endif
 
